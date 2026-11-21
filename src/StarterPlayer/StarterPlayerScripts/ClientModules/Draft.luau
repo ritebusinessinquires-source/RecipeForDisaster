@@ -24,7 +24,12 @@ local timerText: TextLabel
 local rerollBtn: Frame
 local status: TextLabel
 local handEndsAt = 0
+local handDuration = 15
 local picked = false
+local inputHolder: Frame
+local inputBox: TextBox
+local cookBtn: Frame
+local maxLen = 40
 
 local thumbCache: { [number]: string } = {}
 local function headshot(userId: number): string?
@@ -94,8 +99,46 @@ local function buildHand()
 	hand = UI.new("Frame", { Name = "ChefHand", Size = UDim2.fromScale(0.9, 0.48), Position = UDim2.new(0.5, 0, 1, -10), AnchorPoint = Vector2.new(0.5, 1), BackgroundTransparency = 1, Visible = false, ZIndex = 5, Parent = gui })
 	UI.new("UISizeConstraint", { MaxSize = Vector2.new(1000, 420), Parent = hand })
 	handTitle = UI.label(hand, { Text = "Pick the MAIN", Title = true, Size = UDim2.fromScale(0.7, 0.14), Position = UDim2.fromScale(0.5, 0), AnchorPoint = Vector2.new(0.5, 0), Color = UI.C.Mustard, Stroke = 3, ZIndex = 6 })
-	status = UI.label(hand, { Text = "", Title = true, Size = UDim2.fromScale(0.7, 0.1), Position = UDim2.fromScale(0.5, 0.14), AnchorPoint = Vector2.new(0.5, 0), Color = UI.C.White, Stroke = 2, ZIndex = 6 })
-	cardRow = UI.new("Frame", { Size = UDim2.fromScale(1, 0.72), Position = UDim2.fromScale(0, 0.27), BackgroundTransparency = 1, ZIndex = 6, Parent = hand })
+	status = UI.label(hand, { Text = "", Title = true, Size = UDim2.fromScale(0.7, 0.08), Position = UDim2.fromScale(0.5, 0.14), AnchorPoint = Vector2.new(0.5, 0), Color = UI.C.White, Stroke = 2, ZIndex = 6 })
+	-- type ANYTHING
+	local ih, ifc = UI.panel(hand, { Name = "TypeBox", Size = UDim2.fromScale(0.56, 0.15), Position = UDim2.fromScale(0.42, 0.235), AnchorPoint = Vector2.new(0.5, 0), Color = UI.C.White, Corner = 14, ZIndex = 7 })
+	UI.minSize(ih, 220, 60)
+	inputHolder = ih
+	inputBox = UI.new("TextBox", {
+		Name = "Input",
+		Size = UDim2.fromScale(0.94, 0.8),
+		Position = UDim2.fromScale(0.03, 0.1),
+		BackgroundTransparency = 1,
+		Text = "",
+		PlaceholderText = "Type ANYTHING...",
+		PlaceholderColor3 = Color3.fromHex("A08A78"),
+		Font = UI.Theme.TitleFont,
+		TextScaled = true,
+		TextColor3 = UI.C.Chocolate,
+		ClearTextOnFocus = false,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 8,
+		Parent = ifc,
+	})
+	UI.new("UITextSizeConstraint", { MaxTextSize = 34, MinTextSize = 14, Parent = inputBox })
+	cookBtn = UI.button(hand, { Name = "Cook", Text = "COOK IT! 🍳", Color = UI.C.Basil, Size = UDim2.fromScale(0.2, 0.15), Position = UDim2.fromScale(0.72, 0.235), AnchorPoint = Vector2.new(0, 0), MinWidth = 130, ZIndex = 7 }, function()
+		Draft.submitText()
+	end)
+	inputBox:GetPropertyChangedSignal("Text"):Connect(function()
+		if #inputBox.Text > maxLen then
+			inputBox.Text = string.sub(inputBox.Text, 1, maxLen)
+		end
+		if inputBox:IsFocused() then
+			UI.sound("Type", 0.35, 0.9 + math.random() * 0.3)
+		end
+	end)
+	inputBox.FocusLost:Connect(function(enterPressed)
+		if enterPressed then
+			Draft.submitText()
+		end
+	end)
+	UI.label(hand, { Name = "OrPick", Text = "...or tap a quick pick:", Size = UDim2.fromScale(0.5, 0.06), Position = UDim2.fromScale(0.5, 0.4), AnchorPoint = Vector2.new(0.5, 0), Color = UI.C.White, Stroke = 2, ZIndex = 6, MaxText = 20 })
+	cardRow = UI.new("Frame", { Size = UDim2.fromScale(1, 0.53), Position = UDim2.fromScale(0, 0.47), BackgroundTransparency = 1, ZIndex = 6, Parent = hand })
 	UI.list(cardRow, Enum.FillDirection.Horizontal, 12, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
 	-- kitchen timer ring
 	local th, tf = UI.panel(hand, { Name = "Timer", Size = UDim2.fromScale(0.11, 0.24), Position = UDim2.fromScale(0.02, 0.0), AnchorPoint = Vector2.zero, Aspect = 1, Corner = 100, Color = UI.C.White })
@@ -109,6 +152,28 @@ local function buildHand()
 	end)
 end
 
+-- Send whatever was typed (the server filters it before anyone else sees it).
+function Draft.submitText()
+	if picked or not hand.Visible then
+		return
+	end
+	local text = inputBox.Text
+	text = string.gsub(text, "^%s+", "")
+	text = string.gsub(text, "%s+$", "")
+	if text == "" then
+		status.Text = "Type something first - anything!"
+		return
+	end
+	picked = true
+	Net.event("PickIngredient"):FireServer({ text = text })
+	UI.sound("Stamp")
+	UI.pop(inputHolder)
+	status.Text = "Locked in! Waiting for the other Chefs..."
+	rerollBtn.Visible = false
+	cookBtn.Visible = false
+	inputBox.TextEditable = false
+end
+
 local function cardInfo(id: string, slot: string): (string, string, string?)
 	if slot == "Main" then
 		local m = Catalog.Mains[id]
@@ -120,14 +185,20 @@ end
 
 local function showHand(offer: any)
 	picked = false
-	handEndsAt = offer.endsAt or (workspace:GetServerTimeNow() + 10)
+	handEndsAt = offer.endsAt or (workspace:GetServerTimeNow() + 15)
+	handDuration = math.max(5, handEndsAt - workspace:GetServerTimeNow())
+	maxLen = offer.maxLength or 40
+	inputBox.Text = ""
+	inputBox.TextEditable = true
+	cookBtn.Visible = true
+	inputBox.PlaceholderText = offer.slot == "Main" and "Type ANYTHING... a dragon, zombie sharks, your homework" or "Describe it... giant, on fire, made of butter"
 	for _, c in ipairs(cardRow:GetChildren()) do
 		if c:IsA("Frame") then
 			c:Destroy()
 		end
 	end
 	local slotName = offer.slot == "Main" and "MAIN" or "SPICE"
-	handTitle.Text = (offer.slot == "Main" and "Pick the " or "Pick a ") .. slotName .. "!"
+	handTitle.Text = offer.slot == "Main" and "Type the MAIN - anything!" or "Type a SPICE - describe it!"
 	status.Text = "Your pick stays secret until the reveal"
 	local n = #offer.cards
 	local slotColor = offer.slot == "Main" and UI.C.Tomato or UI.C.Mustard
@@ -167,6 +238,8 @@ local function showHand(offer: any)
 				UI.pop(holder)
 				status.Text = "Locked in! Waiting for the other Chefs..."
 				rerollBtn.Visible = false
+				cookBtn.Visible = false
+				inputBox.TextEditable = false
 			end,
 		})
 		table.insert(holders, holder)
@@ -205,6 +278,7 @@ function Draft.init(screen: ScreenGui)
 			status.Text = "Time's up! A random card was played."
 			picked = true
 			rerollBtn.Visible = false
+			cookBtn.Visible = false
 		end
 	end)
 	State.onGame("Phase", function(phase)
@@ -216,7 +290,11 @@ function Draft.init(screen: ScreenGui)
 		if hand.Visible then
 			local left = math.max(0, handEndsAt - workspace:GetServerTimeNow())
 			timerText.Text = tostring(math.ceil(left))
-			timerHand.Rotation = (1 - left / 10) * 360
+			timerHand.Rotation = (1 - left / handDuration) * 360
+			-- out of time with something typed? send it
+			if not picked and left < 0.5 and string.gsub(inputBox.Text, "%s", "") ~= "" then
+				Draft.submitText()
+			end
 			timerText.TextColor3 = left < 4 and UI.C.Tomato or UI.C.Chocolate
 		end
 		if board.Visible then

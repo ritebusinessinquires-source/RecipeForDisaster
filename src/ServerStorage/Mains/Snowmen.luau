@@ -7,6 +7,7 @@ local Snowmen = {
 	id = "Snowmen",
 	type = "Creature",
 	danger = 3,
+	sound = "Groan",
 	seasonal = true,
 	stats = { Size = 1, Speed = 8, Count = 6, Damage = 12, Health = 70 },
 	hint = { text = "Hide behind low cover - dodge the snowballs!", icon = "cover" },

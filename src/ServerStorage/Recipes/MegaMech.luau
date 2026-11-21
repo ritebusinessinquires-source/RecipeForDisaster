@@ -20,6 +20,7 @@ function Recipe.Spawn(ctx)
 	local s = ctx.stats.Size
 	local p = ctx:randomOpenPoint()
 	local mech = Mover.new(ctx, Models.Mech(s), { mode = "ground", radius = 4 * s, speed = ctx.stats.Speed, position = p + Vector3.new(0, 5 * s, 0), accel = 400, turnRate = 60 })
+	ctx:decorate(mech, "RobotBeep")
 	local magnet = mech.model:FindFirstChild("Magnet") :: BasePart?
 	ctx:addPull(magnet or mech.root, 60, 9)
 	ctx:fx("Banner", { text = "MEGA MECH ONLINE", color = "#E84A3A" })
@@ -28,6 +29,7 @@ function Recipe.Spawn(ctx)
 		local ground = ctx:groundAt(origin.X, origin.Z) or 0
 		local center = Vector3.new(origin.X, ground, origin.Z)
 		ctx:rumble(1.5, 0.6)
+		ctx:sound("Stomp", center, 1)
 		ctx:fx("Shockwave", { pos = center, radius = 45, duration = 1.3 })
 		for i = 1, 6 do
 			ctx:delay(i * 0.2, function()

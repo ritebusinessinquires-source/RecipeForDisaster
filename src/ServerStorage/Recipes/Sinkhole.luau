@@ -38,6 +38,13 @@ function Recipe.Spawn(ctx)
 	swirl.Speed = NumberRange.new(2, 4)
 	swirl.Parent = core
 	ctx:addPull(core, 75, 9)
+	local snd = Instance.new("Sound")
+	snd.SoundId = ctx.Config.Sounds.Squelch
+	snd.Looped = true
+	snd.Volume = 0.8
+	snd.RollOffMaxDistance = 120
+	snd.Parent = core
+	snd:Play()
 	local angle = 0
 	ctx:loop(0.1, function(dt)
 		-- drift slowly toward players, spin, grow

@@ -5,6 +5,7 @@ return {
 	id = "Fog",
 	danger = 1,
 	Start = function(ctx)
+		ctx:fx("Sound", { name = "Wind", volume = 0.8 })
 		local atmo = Lighting:FindFirstChildOfClass("Atmosphere")
 		local saved = atmo and { Density = atmo.Density, Haze = atmo.Haze, Color = atmo.Color, Decay = atmo.Decay, Offset = atmo.Offset } or nil
 		if atmo then

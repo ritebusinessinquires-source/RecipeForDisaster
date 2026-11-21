@@ -13,6 +13,10 @@ local Net = require(Shared.Net)
 local PlayerData = require(ServerScriptService:WaitForChild("PlayerData"))
 local Services = ServerScriptService:WaitForChild("Services")
 local Monetization = require(Services:WaitForChild("Monetization"))
+local Lexicon = require(game:GetService("ServerStorage"):WaitForChild("Lexicon"))
+local TextService = game:GetService("TextService")
+
+local MAX_TEXT = 40
 
 local ChefDraft = {}
 
@@ -132,6 +136,8 @@ local function offer(rec: ChefRec, hand: { string })
 			course = active.course,
 			canReroll = Config.Products.RerollHand.id > 0 and not active.rerolled[rec.player],
 			rerollPrice = Config.Products.RerollHand.price,
+			typing = true,
+			maxLength = MAX_TEXT,
 		})
 	end
 end
@@ -164,8 +170,9 @@ function ChefDraft.start(course: number, alive: { any }, ghosts: { any }, prevCh
 			local hand = active.hands[i]
 			local myDraft = active
 			task.delay(rng:NextNumber(1.5, 4.5), function()
-				if active == myDraft and not myDraft.picks[i] and #hand > 0 then
-					myDraft.picks[i] = hand[rng:NextInteger(1, #hand)]
+				if active == myDraft and not myDraft.picks[i] then
+					local text = Lexicon.botPick(rec.slot, rng)
+					myDraft.picks[i] = { raw = text, display = text }
 				end
 			end)
 		end
@@ -185,28 +192,83 @@ function ChefDraft.isDone(): boolean
 	return true
 end
 
--- Finishes the draft: random card for anyone who didn't pick.
+local function cardPick(id: string): any
+	local info = Catalog.ingredient(id)
+	local name = info and info.name or id
+	return { raw = string.lower(name), display = name, card = id }
+end
+
+-- Clean up typed text: printable characters only, single spaces, capped length.
+function ChefDraft.sanitize(text: any): string?
+	if type(text) ~= "string" then
+		return nil
+	end
+	local t = string.gsub(text, "[%c]", " ")
+	t = string.gsub(t, "%s+", " ")
+	t = string.gsub(t, "^%s+", "")
+	t = string.gsub(t, "%s+$", "")
+	if utf8.len(t) == nil then
+		return nil
+	end
+	if #t > MAX_TEXT then
+		t = string.sub(t, 1, MAX_TEXT)
+		while #t > 0 and utf8.len(t) == nil do
+			t = string.sub(t, 1, -2)
+		end
+	end
+	if t == "" then
+		return nil
+	end
+	return t
+end
+
+-- Roblox requires typed text to be filtered before other players see it. If filtering
+-- fails nothing typed is shown (the dish falls back to the ingredient names).
+function ChefDraft.filter(player: any, text: string): string?
+	if not Net.isRealPlayer(player) then
+		return text
+	end
+	local ok, result = pcall(function()
+		local r = TextService:FilterStringAsync(text, player.UserId, Enum.TextFilterContext.PublicChat)
+		return r:GetNonChatStringForBroadcastAsync()
+	end)
+	if ok and type(result) == "string" then
+		return result
+	end
+	return nil
+end
+
+-- Finishes the draft: a random card for anyone who didn't pick, then filters typed text.
 function ChefDraft.finish(): any
 	local d = active
 	if not d then
 		return nil
 	end
+	active = nil
 	for i = 1, 3 do
+		local rec = d.chefs[i]
 		if not d.picks[i] then
 			local hand = d.hands[i]
-			d.picks[i] = hand[rng:NextInteger(1, #hand)]
-			local rec = d.chefs[i]
+			local id = hand[rng:NextInteger(1, #hand)]
+			d.picks[i] = cardPick(id)
 			if rec.player then
-				Net.fire(rec.player, "PickConfirmed", { card = d.picks[i], auto = true })
+				Net.fire(rec.player, "PickConfirmed", { card = id, auto = true })
 			end
 		end
-		local rec = d.chefs[i]
+		local pick = d.picks[i]
+		if pick.needsFilter then
+			pick.display = ChefDraft.filter(rec.player, pick.raw)
+			pick.needsFilter = nil
+		end
 		if rec.player and typeof(rec.player) == "Instance" then
 			rec.player:SetAttribute("ChefSlot", nil)
 		end
 	end
-	active = nil
-	return { chefs = d.chefs, main = d.picks[1], spice1 = d.picks[2], spice2 = d.picks[3] }
+	return {
+		chefs = d.chefs,
+		entries = { main = d.picks[1], spices = { d.picks[2], d.picks[3] } },
+		picks = d.picks,
+	}
 end
 
 function ChefDraft.cancel()
@@ -230,16 +292,25 @@ function ChefDraft.reroll(player: any): boolean
 end
 
 function ChefDraft.init()
-	Net.event("PickIngredient").OnServerEvent:Connect(function(player, cardId)
-		if not active or type(cardId) ~= "string" then
+	-- payload: a card id the server dealt, or { text = "anything you like" }
+	Net.event("PickIngredient").OnServerEvent:Connect(function(player, payload)
+		if not active then
 			return
 		end
 		for i, rec in ipairs(active.chefs) do
 			if rec.player == player and not active.picks[i] then
-				-- only accept a card the server actually dealt to this player
-				if table.find(active.hands[i], cardId) then
-					active.picks[i] = cardId
-					Net.fire(player, "PickConfirmed", { card = cardId })
+				if type(payload) == "string" then
+					-- only accept a card the server actually dealt to this player
+					if table.find(active.hands[i], payload) then
+						active.picks[i] = cardPick(payload)
+						Net.fire(player, "PickConfirmed", { card = payload })
+					end
+				elseif type(payload) == "table" then
+					local text = ChefDraft.sanitize(payload.text)
+					if text then
+						active.picks[i] = { raw = text, needsFilter = true }
+						Net.fire(player, "PickConfirmed", { text = true })
+					end
 				end
 				return
 			end

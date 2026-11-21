@@ -45,6 +45,7 @@ function Recipe.Spawn(ctx)
 			local m = Models.Blob(3.5, Color3.fromRGB(25, 25, 35), Enum.Material.Glass)
 			local ball = Mover.new(ctx, m, { mode = "ground", radius = 3.5, speed = ctx.stats.Speed, position = Vector3.new(startPos.X, ground + 4, startPos.Z), dir = dir, accel = 200 })
 			ball.ao.Enabled = false
+			ctx:decorate(ball, "Roll")
 			local born = os.clock()
 			task.spawn(function()
 				while ctx.alive and ball.alive and ball.root.Parent and os.clock() - born < 8 do

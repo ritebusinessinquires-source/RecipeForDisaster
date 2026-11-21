@@ -75,6 +75,7 @@ function Sharks.step(ctx, obj, dt)
 			obj.data.nextLunge = now + 2.2
 			obj.data.lungeTarget = t
 			ctx:fx("Splash", { pos = Vector3.new(pos.X, surface, pos.Z), size = s })
+			ctx:sound("Chomp", pos, 0.8)
 			return true
 		end
 	end

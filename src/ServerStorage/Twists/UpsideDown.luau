@@ -6,6 +6,7 @@ return {
 	id = "UpsideDown",
 	danger = 1,
 	Start = function(ctx)
+		ctx:fx("Sound", { name = "Whoosh", volume = 0.8 })
 		local on = false
 		local function setAll(state: boolean)
 			on = state

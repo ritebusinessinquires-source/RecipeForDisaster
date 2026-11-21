@@ -48,6 +48,7 @@ function Recipe.Spawn(ctx)
 	cone.Parent = ctx.folder
 	-- rise out of the ground
 	ctx:rumble(1.5, 3)
+	ctx:fx("Sound", { name = "Roar", volume = 1, pitch = 0.5 })
 	for _, p in ipairs(cone:GetChildren()) do
 		if p:IsA("BasePart") then
 			TweenService:Create(p, TweenInfo.new(3, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { CFrame = p.CFrame + Vector3.new(0, 26, 0) }):Play()

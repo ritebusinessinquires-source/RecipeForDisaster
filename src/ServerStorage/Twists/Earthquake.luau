@@ -3,6 +3,7 @@ return {
 	id = "Earthquake",
 	danger = 1,
 	Start = function(ctx)
+		ctx:fx("Sound", { name = "Stomp", volume = 0.8 })
 		ctx:loop(3.5, function()
 			if ctx:elapsed() < 1 then
 				return

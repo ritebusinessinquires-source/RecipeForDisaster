@@ -20,6 +20,7 @@ function Recipe.Spawn(ctx)
 		local p = ctx:randomOpenPoint()
 		local w = Mover.new(ctx, Models.Wisp(1.2), { mode = "phase", radius = 1.2, speed = ctx.stats.Speed, position = p + Vector3.new(0, 4, 0), turnRate = 120 })
 		ctx:addPull(w.root, 30, 6)
+		ctx:decorate(w, "Wail")
 		w.data.phase = ctx.rng:NextNumber(0, 6)
 	end
 	ctx:loop(0.1, function(dt)

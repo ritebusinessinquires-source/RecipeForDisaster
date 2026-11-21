@@ -34,7 +34,7 @@ function CreatureRunner.spawnOne(ctx: any, main: any, pos: Vector3?): any
 	local stats = ctx.stats
 	local scale = stats.Size
 	local build = main.build or Models[main.id]
-	local model = build(scale)
+	local model = build(scale, ctx)
 	local p = pos or spawnPoint(ctx, cfg)
 	local radius = cfg.radius * scale
 	local startY = p.Y + radius + 0.5
@@ -63,6 +63,7 @@ function CreatureRunner.spawnOne(ctx: any, main: any, pos: Vector3?): any
 	if main.onSpawn then
 		main.onSpawn(ctx, obj)
 	end
+	ctx:decorate(obj, main.sound)
 	ctx:fx("Poof", { pos = obj.root.Position, color = cfg.poofColor })
 	return obj
 end

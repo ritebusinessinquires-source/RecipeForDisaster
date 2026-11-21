@@ -293,4 +293,188 @@ function Models.Mech(s: number): Model
 	return m
 end
 
+---------------------------------------------------------------- archetype rigs
+-- Generic blocky figures. Colours come from a palette picked by the typed word, so two
+-- different words give different-looking figures. Nothing here copies any character's look.
+
+local PALETTES = {
+	{ shirt = rgb(232, 74, 58), pants = rgb(60, 60, 80), skin = rgb(242, 201, 160), accent = rgb(255, 201, 60) },
+	{ shirt = rgb(76, 175, 80), pants = rgb(70, 50, 40), skin = rgb(205, 150, 110), accent = rgb(255, 244, 220) },
+	{ shirt = rgb(80, 140, 230), pants = rgb(40, 40, 60), skin = rgb(242, 201, 160), accent = rgb(232, 74, 58) },
+	{ shirt = rgb(123, 79, 214), pants = rgb(50, 40, 70), skin = rgb(150, 105, 75), accent = rgb(255, 201, 60) },
+	{ shirt = rgb(255, 201, 60), pants = rgb(80, 60, 50), skin = rgb(242, 201, 160), accent = rgb(59, 36, 24) },
+	{ shirt = rgb(255, 143, 184), pants = rgb(70, 70, 90), skin = rgb(220, 175, 130), accent = rgb(255, 255, 255) },
+	{ shirt = rgb(47, 181, 168), pants = rgb(40, 60, 60), skin = rgb(110, 75, 55), accent = rgb(255, 201, 60) },
+	{ shirt = rgb(40, 40, 48), pants = rgb(25, 25, 30), skin = rgb(242, 201, 160), accent = rgb(232, 74, 58) },
+}
+Models.PALETTES = PALETTES
+
+local function palette(ctx: any?): any
+	local i = (ctx and ctx.dish and ctx.dish.palette) or 1
+	return PALETTES[((i - 1) % #PALETTES) + 1]
+end
+Models.palette = palette
+
+-- Blocky figure standing on its root ball (radius 1.5*s, feet at -1.5*s).
+function Models.Rig(name: string, s: number, pal: any): Model
+	local m = Models.base(name, 1.5 * s, true)
+	Models.add(m, Block, Vector3.new(0.9, 1.6, 0.9) * s, pal.pants, CFrame.new(-0.5 * s, -0.7 * s, 0))
+	Models.add(m, Block, Vector3.new(0.9, 1.6, 0.9) * s, pal.pants, CFrame.new(0.5 * s, -0.7 * s, 0))
+	Models.add(m, Block, Vector3.new(2, 1.9, 1) * s, pal.shirt, CFrame.new(0, 1.05 * s, 0), nil, "Body")
+	Models.add(m, Block, Vector3.new(0.8, 1.8, 0.8) * s, pal.shirt, CFrame.new(-1.4 * s, 1.0 * s, -0.2 * s) * CFrame.Angles(math.rad(25), 0, 0), nil, "ArmL")
+	Models.add(m, Block, Vector3.new(0.8, 1.8, 0.8) * s, pal.shirt, CFrame.new(1.4 * s, 1.0 * s, -0.2 * s) * CFrame.Angles(math.rad(25), 0, 0), nil, "ArmR")
+	Models.add(m, Block, Vector3.new(1.25, 1.25, 1.25) * s, pal.skin, CFrame.new(0, 2.65 * s, 0), nil, "Head")
+	eyes(m, s, 2.75, -0.63, 0.25, 0.3)
+	return m
+end
+
+function Models.Fighter(s: number, ctx: any?): Model
+	local pal = palette(ctx)
+	local m = Models.Rig("Fighter", s, pal)
+	Models.add(m, Block, Vector3.new(2.05, 0.3, 1.05) * s, rgb(30, 30, 30), CFrame.new(0, 0.35 * s, 0))
+	Models.add(m, Block, Vector3.new(1.3, 0.25, 1.3) * s, pal.accent, CFrame.new(0, 3.0 * s, 0))
+	for _, x in ipairs({ -1.4, 1.4 }) do
+		local f = Models.add(m, Ball, Vector3.new(0.9, 0.9, 0.9) * s, rgb(120, 220, 255), CFrame.new(x * s, 0.1 * s, -0.6 * s), Neon, "Fist")
+		f.Transparency = 0.25
+	end
+	-- spiky "power" aura
+	local aura = Models.add(m, Ball, Vector3.new(3.4, 4.6, 3.4) * s, pal.accent, CFrame.new(0, 1.2 * s, 0), Neon, "Aura")
+	aura.Transparency = 0.85
+	aura.CastShadow = false
+	return m
+end
+
+function Models.Ninja(s: number, ctx: any?): Model
+	local pal = palette(ctx)
+	local dark = { shirt = rgb(35, 35, 45), pants = rgb(25, 25, 32), skin = pal.skin, accent = pal.accent }
+	local m = Models.Rig("Ninja", s, dark)
+	Models.add(m, Block, Vector3.new(1.3, 0.7, 1.3) * s, rgb(30, 30, 38), CFrame.new(0, 2.4 * s, 0))
+	Models.add(m, Block, Vector3.new(1.32, 0.25, 1.32) * s, pal.accent, CFrame.new(0, 3.0 * s, 0))
+	Models.add(m, Block, Vector3.new(0.3, 0.25, 1.6) * s, pal.accent, CFrame.new(0.4 * s, 3.0 * s, 0.9 * s) * CFrame.Angles(0, math.rad(20), math.rad(-20)))
+	Models.add(m, Block, Vector3.new(2.1, 0.5, 1.1) * s, pal.accent, CFrame.new(0, 1.9 * s, 0))
+	return m
+end
+
+function Models.Wizard(s: number, ctx: any?): Model
+	local pal = palette(ctx)
+	local m = Models.Rig("Wizard", s, pal)
+	-- robe down to the floor
+	Models.add(m, Block, Vector3.new(2.2, 2.4, 1.3) * s, pal.shirt, CFrame.new(0, -0.3 * s, 0), Enum.Material.Fabric, "Robe")
+	-- pointy hat: stacked cylinders getting narrower
+	for i = 0, 4 do
+		local d = (1.9 - i * 0.38) * s
+		Models.add(m, Cyl, Vector3.new(0.45 * s, d, d), pal.accent, CFrame.new(0, (3.35 + i * 0.4) * s, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	end
+	-- staff with a glowing orb
+	Models.add(m, Cyl, Vector3.new(4.6, 0.25, 0.25) * s, rgb(120, 80, 45), CFrame.new(1.8 * s, 1.0 * s, -0.6 * s) * CFrame.Angles(0, 0, math.rad(90)), Enum.Material.Wood)
+	local orb = Models.add(m, Ball, Vector3.new(0.8, 0.8, 0.8) * s, rgb(170, 120, 255), CFrame.new(1.8 * s, 3.4 * s, -0.6 * s), Neon, "Orb")
+	local l = Instance.new("PointLight")
+	l.Color = rgb(170, 120, 255)
+	l.Range = 10
+	l.Parent = orb
+	return m
+end
+
+function Models.Swordsman(s: number, ctx: any?): Model
+	local pal = palette(ctx)
+	local m = Models.Rig("Swordsman", s, pal)
+	Models.add(m, Block, Vector3.new(2.15, 1.2, 1.15) * s, rgb(170, 175, 185), CFrame.new(0, 1.4 * s, 0), Enum.Material.Metal)
+	Models.add(m, Block, Vector3.new(1.35, 0.4, 1.35) * s, rgb(170, 175, 185), CFrame.new(0, 3.2 * s, 0), Enum.Material.Metal)
+	-- sword held out front
+	Models.add(m, Block, Vector3.new(0.25, 0.25, 1.0) * s, rgb(60, 40, 30), CFrame.new(1.4 * s, 0.2 * s, -1.0 * s))
+	Models.add(m, Block, Vector3.new(0.9, 0.2, 0.2) * s, pal.accent, CFrame.new(1.4 * s, 0.2 * s, -1.5 * s))
+	local blade = Models.add(m, Block, Vector3.new(0.12, 0.4, 3.6) * s, rgb(220, 235, 255), CFrame.new(1.4 * s, 0.2 * s, -3.4 * s), Enum.Material.Metal, "Blade")
+	blade.Reflectance = 0.2
+	return m
+end
+
+function Models.Titan(s: number, ctx: any?): Model
+	local pal = palette(ctx)
+	local big = 3.5 * s
+	local m = Models.Rig("Titan", big, { shirt = pal.shirt:Lerp(rgb(120, 100, 90), 0.5), pants = pal.pants, skin = pal.skin:Lerp(rgb(200, 120, 100), 0.3), accent = pal.accent })
+	Models.add(m, Block, Vector3.new(0.7, 0.25, 0.1) * big, rgb(60, 20, 20), CFrame.new(0, 2.35 * big, -0.63 * big))
+	return m
+end
+
+function Models.Dragon(s: number, ctx: any?): Model
+	local pal = palette(ctx)
+	local c = pal.shirt
+	local m = Models.base("Dragon", 3 * s)
+	Models.add(m, Ball, Vector3.new(6, 6, 6) * s, c, CFrame.new(0, 0, 0), nil, "Body")
+	Models.add(m, Ball, Vector3.new(4.6, 4.6, 4.6) * s, c, CFrame.new(0, 0.2 * s, 3.4 * s))
+	Models.add(m, Cyl, Vector3.new(4, 2, 2) * s, c, CFrame.new(0, 2.2 * s, -3.6 * s) * CFrame.Angles(0, math.rad(90), math.rad(40)))
+	Models.add(m, Block, Vector3.new(2.6, 2.2, 3.4) * s, c, CFrame.new(0, 3.8 * s, -5.6 * s), nil, "Head")
+	eyes(m, s, 4.4, -7.3, 0.7, 0.45)
+	Models.add(m, Wedge, Vector3.new(0.4, 1.6, 1.0) * s, pal.accent, CFrame.new(-0.8 * s, 5.4 * s, -5.0 * s))
+	Models.add(m, Wedge, Vector3.new(0.4, 1.6, 1.0) * s, pal.accent, CFrame.new(0.8 * s, 5.4 * s, -5.0 * s))
+	for _, side in ipairs({ -1, 1 }) do
+		local wing = Models.add(m, Block, Vector3.new(9, 0.3, 5) * s, pal.accent:Lerp(c, 0.4), CFrame.new(side * 6.5 * s, 2 * s, 0) * CFrame.Angles(0, 0, math.rad(side * 18)), nil, "Wing")
+		wing.Transparency = 0.1
+	end
+	for i = 1, 4 do
+		local d = (2.2 - i * 0.4) * s
+		Models.add(m, Ball, Vector3.new(d, d, d), c, CFrame.new(0, -0.2 * s, (5 + i * 1.8) * s))
+	end
+	return m
+end
+
+function Models.UFO(s: number, ctx: any?): Model
+	local m = Models.base("UFO", 4 * s)
+	Models.add(m, Cyl, Vector3.new(1.4, 12, 12) * s, rgb(180, 190, 205), CFrame.new(0, 0, 0) * CFrame.Angles(0, 0, math.rad(90)), Enum.Material.Metal, "Saucer")
+	local dome = Models.add(m, Ball, Vector3.new(5, 5, 5) * s, rgb(150, 230, 255), CFrame.new(0, 1.2 * s, 0), Enum.Material.Glass, "Dome")
+	dome.Transparency = 0.35
+	-- the pilot
+	Models.add(m, Ball, Vector3.new(1.8, 2.2, 1.8) * s, rgb(120, 230, 90), CFrame.new(0, 1.4 * s, 0))
+	for i = 0, 7 do
+		local a = i / 8 * math.pi * 2
+		Models.add(m, Ball, Vector3.new(0.8, 0.8, 0.8) * s, i % 2 == 0 and rgb(255, 201, 60) or rgb(255, 90, 90), CFrame.new(math.cos(a) * 5.6 * s, -0.2 * s, math.sin(a) * 5.6 * s), Neon)
+	end
+	local glow = Models.add(m, Cyl, Vector3.new(0.3, 5, 5) * s, rgb(150, 255, 150), CFrame.new(0, -0.8 * s, 0) * CFrame.Angles(0, 0, math.rad(90)), Neon, "Beam")
+	glow.Transparency = 0.3
+	return m
+end
+
+function Models.Slime(s: number, ctx: any?): Model
+	local pal = palette(ctx)
+	local m = Models.base("Slime", 1.6 * s, true)
+	local root = m.PrimaryPart :: Part
+	root.Transparency = 0.25
+	root.Color = pal.shirt:Lerp(rgb(110, 220, 90), 0.6)
+	root.Material = Enum.Material.Glass
+	root.CustomPhysicalProperties = PhysicalProperties.new(0.8, 0, 0.6, 100, 100)
+	eyes(m, s, 0.4, -1.3, 0.45, 0.45)
+	Models.add(m, Ball, Vector3.new(1.4, 1.4, 1.4) * s, root.Color:Lerp(rgb(255, 255, 255), 0.4), CFrame.new(0.5 * s, 0.7 * s, 0.4 * s)).Transparency = 0.4
+	return m
+end
+
+function Models.Critter(s: number, ctx: any?): Model
+	local pal = palette(ctx)
+	local fur = pal.shirt:Lerp(rgb(200, 160, 110), 0.55)
+	local m = Models.base("Critter", 1.1 * s, true)
+	Models.add(m, Block, Vector3.new(1.6, 1.3, 2.4) * s, fur, CFrame.new(0, 0.25 * s, 0.2 * s), nil, "Body")
+	Models.add(m, Block, Vector3.new(1.3, 1.2, 1.2) * s, fur, CFrame.new(0, 0.9 * s, -1.4 * s), nil, "Head")
+	eyes(m, s, 1.05, -2.0, 0.3, 0.3)
+	Models.add(m, Wedge, Vector3.new(0.35, 0.7, 0.5) * s, fur, CFrame.new(-0.4 * s, 1.8 * s, -1.4 * s))
+	Models.add(m, Wedge, Vector3.new(0.35, 0.7, 0.5) * s, fur, CFrame.new(0.4 * s, 1.8 * s, -1.4 * s))
+	Models.add(m, Ball, Vector3.new(0.4, 0.3, 0.3) * s, rgb(40, 30, 30), CFrame.new(0, 0.8 * s, -2.02 * s))
+	for _, x in ipairs({ -0.55, 0.55 }) do
+		for _, z in ipairs({ -0.6, 0.9 }) do
+			Models.add(m, Block, Vector3.new(0.4, 0.8, 0.4) * s, fur:Lerp(rgb(0, 0, 0), 0.2), CFrame.new(x * s, -0.65 * s, z * s))
+		end
+	end
+	Models.add(m, Block, Vector3.new(0.3, 0.3, 1.2) * s, fur, CFrame.new(0, 0.6 * s, 1.8 * s) * CFrame.Angles(math.rad(-30), 0, 0))
+	return m
+end
+
+function Models.StormCloud(s: number): Model
+	local m = Models.base("StormCloud", 6 * s)
+	for i = 1, 7 do
+		local a = i / 7 * math.pi * 2
+		local p = Models.add(m, Ball, Vector3.one * (9 + (i % 3) * 3) * s, rgb(90, 95, 110), CFrame.new(math.cos(a) * 7 * s, (i % 2) * 2 * s, math.sin(a) * 5 * s))
+		p.Transparency = 0.15
+		p.CastShadow = true
+	end
+	return m
+end
+
 return Models

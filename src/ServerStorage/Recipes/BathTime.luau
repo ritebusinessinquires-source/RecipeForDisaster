@@ -41,10 +41,12 @@ local Duck = {
 	build = function(s)
 		return Models.Duck(s)
 	end,
+	sound = "Squeak",
 }
 
 function Recipe.Spawn(ctx)
 	ctx:fx("Banner", { text = "BATH TIME!", color = "#FFC93C" })
+	ctx:fx("Sound", { name = "Splash", volume = 1 })
 	CreatureRunner.run(ctx, Duck)
 end
 

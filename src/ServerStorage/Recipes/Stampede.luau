@@ -26,6 +26,7 @@ function Recipe.Spawn(ctx)
 		local gapA = ctx.rng:NextNumber(-half * 0.7, half * 0.7)
 		local gapB = ctx.rng:NextNumber(-half * 0.7, half * 0.7)
 		ctx:fx("Banner", { text = "STAMPEDE!", color = "#E84A3A", small = true })
+		ctx:fx("Sound", { name = "Cluck", volume = 1 })
 		for off = -half + 4, half - 4, 7 do
 			if math.abs(off - gapA) > 8 and math.abs(off - gapB) > 8 then
 				local p = center - dir * (half - 3) + side * off

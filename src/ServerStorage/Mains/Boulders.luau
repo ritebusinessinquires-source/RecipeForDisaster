@@ -6,6 +6,7 @@ local Boulders = {
 	id = "Boulders",
 	type = "Projectile",
 	danger = 3,
+	sound = "Roll",
 	stats = { Size = 1, Speed = 24, Count = 4, Damage = 30, Health = 200 },
 	hint = { text = "Duck behind low cover!", icon = "cover" },
 	projectile = { kind = "roll", radius = 3, knock = 60, accel = 60 },

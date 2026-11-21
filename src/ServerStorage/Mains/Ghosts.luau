@@ -6,6 +6,7 @@ local Ghosts = {
 	id = "Ghosts",
 	type = "Creature",
 	danger = 3,
+	sound = "Wail",
 	stats = { Size = 1, Speed = 9, Count = 6, Damage = 15, Health = 999 },
 	hint = { text = "Keep moving - ghosts are slow but float through everything!", icon = "run" },
 	creature = { mode = "phase", radius = 1.6, hover = 2.5, turnRate = 140, cooldown = 1.2, knock = 10, followHeight = true, poofColor = Color3.fromRGB(200, 190, 255) },

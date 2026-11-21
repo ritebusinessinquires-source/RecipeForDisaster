@@ -185,6 +185,24 @@ function DishResolver.resolve(mainId: string, spiceA: string, spiceB: string, tw
 		end
 	end
 
+	-- extra describing words (typed ingredients) stack on top; a repeat upgrades to the double
+	for _, e in ipairs(opts.extraSpices or {}) do
+		local mod = DishResolver.Spices[e]
+		if mod then
+			local lvl = dish.hooks[e]
+			if lvl == nil then
+				dish.hooks[e] = 1
+				applyStats(mod.stats)
+				table.insert(words, { text = Catalog.Spices[e].name, pri = wordPriority(e), order = spiceOrderIndex(e) })
+				danger += mod.danger or 1
+			elseif lvl < 2 then
+				dish.hooks[e] = 2
+				applyStats(mod.stats)
+				danger += mod.danger or 1
+			end
+		end
+	end
+
 	-- no dead modifiers: a Spice with no real effect on this type -> +30% Damage
 	for s, _ in pairs(dish.hooks) do
 		local mod = DishResolver.Spices[s]
@@ -270,6 +288,136 @@ function DishResolver.resolve(mainId: string, spiceA: string, spiceB: string, tw
 		hint.sub = "They can't decide how fast to go - watch them!"
 	end
 	dish.hint = hint
+	return dish
+end
+
+---------------------------------------------------------------- typed dishes
+
+local Lexicon = require(ServerStorage:WaitForChild("Lexicon"))
+
+local function titleCase(str: string): string
+	return (string.gsub(string.lower(str), "(%a)([%w']*)", function(first, rest)
+		return string.upper(first) .. rest
+	end))
+end
+
+local function clean(display: string?, fallback: string): string
+	if type(display) ~= "string" then
+		return fallback
+	end
+	local d = string.gsub(display, "%s+", " ")
+	d = string.gsub(d, "^%s+", "")
+	d = string.gsub(d, "%s+$", "")
+	-- fully filtered (or empty) text shows the ingredient's own name instead
+	local letters = string.gsub(d, "[^%w]", "")
+	if letters == "" or string.find(d, "#", 1, true) and #(string.gsub(d, "[#%s]", "")) == 0 then
+		return fallback
+	end
+	if #d > 28 then
+		d = string.sub(d, 1, 28)
+	end
+	return titleCase(d)
+end
+DishResolver.clean = clean
+
+-- input = { main = { raw, display }, spices = { { raw, display }, { raw, display } } }
+-- raw text is only used to work out what the words mean; only filtered display text is shown.
+function DishResolver.resolveTyped(input: any, twistId: string?, opts: any?)
+	opts = opts or {}
+	local mainIn = input.main or { raw = "" }
+	local sIn = input.spices or {}
+	local s1In, s2In = sIn[1] or { raw = "" }, sIn[2] or { raw = "" }
+	local m = Lexicon.resolveMain(mainIn.raw or "")
+	local s1 = Lexicon.resolveSpice(s1In.raw or "")
+	local s2 = Lexicon.resolveSpice(s2In.raw or "")
+	-- describing words that came with the Main (e.g. a character's signature move) fill a
+	-- Spice slot the game had to guess, so "volcano" can still find its secret recipe
+	local mainSpices = table.clone(m.spices)
+	local spiceA, spiceB = s1.spices[1], s2.spices[1]
+	if s1.guessed and #mainSpices > 0 then
+		spiceA = table.remove(mainSpices, 1)
+		s1.guessed = false
+	end
+	if s2.guessed and #mainSpices > 0 then
+		spiceB = table.remove(mainSpices, 1)
+		s2.guessed = false
+	end
+	local extras = {}
+	for i = 2, #s1.spices do
+		table.insert(extras, s1.spices[i])
+	end
+	for i = 2, #s2.spices do
+		table.insert(extras, s2.spices[i])
+	end
+	for _, e in ipairs(mainSpices) do
+		table.insert(extras, e)
+	end
+	while #extras > 6 do
+		table.remove(extras)
+	end
+	local o = table.clone(opts)
+	o.extraSpices = extras
+	local dish = DishResolver.resolve(m.main, spiceA, spiceB, twistId, o)
+
+	-- every thing typed anywhere stacks into the dish as its own hazard
+	local extraMains = {}
+	local function addMain(id)
+		if id and id ~= m.main and not table.find(extraMains, id) and #extraMains < 2 and DishResolver.Mains[id] then
+			table.insert(extraMains, id)
+		end
+	end
+	for _, id in ipairs(m.extraMains) do
+		addMain(id)
+	end
+	for _, id in ipairs(s1.mains) do
+		addMain(id)
+	end
+	for _, id in ipairs(s2.mains) do
+		addMain(id)
+	end
+	dish.components = {}
+	for i, id in ipairs(extraMains) do
+		local sub = DishResolver.resolve(id, spiceA, spiceB, nil, { id = tostring(dish.id) .. "_" .. i, course = dish.course, suddenDeath = dish.suddenDeath, extraSpices = extras, seed = (dish.seed or 1) + i })
+		sub.stats.Count = math.max(1, math.floor(sub.stats.Count * 0.6))
+		sub.creditId = dish.id
+		table.insert(dish.components, sub)
+	end
+
+	-- what the Chefs typed (filtered), falling back to the ingredient names
+	local mainName = clean(mainIn.display, Catalog.Mains[m.main] and Catalog.Mains[m.main].name or m.main)
+	local w1 = clean(s1In.display, Catalog.Spices[spiceA].name)
+	local w2 = clean(s2In.display, Catalog.Spices[spiceB].name)
+	dish.typed = { main = mainName, spices = { w1, w2 } }
+	dish.label = mainName
+	dish.palette = (Lexicon.hash(m.normalized ~= "" and m.normalized or m.main) % 8) + 1
+	local twistInfo = twistId and Catalog.Twists[twistId] or nil
+	local base = w1 .. " " .. w2 .. " " .. mainName
+	if dish.secretId then
+		base = dish.name -- keep the secret recipe's own name, it's the reward
+	else
+		base = base .. (twistInfo and (" " .. twistInfo.suffix) or "")
+	end
+	if #base > 70 then
+		base = string.sub(base, 1, 70)
+	end
+	dish.name = base
+	dish.behaviour = {
+		main = Catalog.Mains[m.main] and Catalog.Mains[m.main].name or m.main,
+		spices = { Catalog.Spices[spiceA].name, Catalog.Spices[spiceB].name },
+		extras = extras,
+		extraMains = extraMains,
+		unknownMain = m.unknown,
+	}
+	-- words the game had to guess get a little explanation on the reveal
+	if m.unknown and mainName ~= "" then
+		table.insert(dish.jokes, string.format("Nobody knows what '%s' is... so it's %s!", mainName, dish.behaviour.main))
+	end
+	if s1.guessed then
+		table.insert(dish.jokes, string.format("'%s' means %s now.", w1, Catalog.Spices[spiceA].name))
+	end
+	if s2.guessed then
+		table.insert(dish.jokes, string.format("'%s' means %s now.", w2, Catalog.Spices[spiceB].name))
+	end
 	return dish
 end
 

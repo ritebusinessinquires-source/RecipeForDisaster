@@ -6,6 +6,7 @@ return {
 	id = "RisingWater",
 	danger = 2,
 	Start = function(ctx)
+		ctx:fx("Sound", { name = "Bubble", volume = 0.8 })
 		local map = ctx.map
 		if not map then
 			return

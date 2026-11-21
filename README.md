@@ -2,10 +2,30 @@
 
 A Roblox party-survival game: each course, three random players secretly add one ingredient
 each to a pot, and everyone has to survive the dish they cooked ("Giant Slippery Bees in the
-Dark"). 12 Mains × 78 Spice pairs × 7 Twist options = **6,552 dishes**, plus 14 secret recipes.
+Dark"). Chefs can type anything; it resolves onto 23 Mains × 105 Spice pairs × 7 Twist options
+= **16,905 dishes**, plus 14 secret recipes.
 
 - Universe `10778121901`, place `77411074610403` (Roblox game page: https://www.roblox.com/games/77411074610403)
 - Built from the *Recipe for Disaster — Game Design Doc* (Nov 20, 2026)
+
+## Typing anything
+
+Chefs type their ingredient (quick-pick cards are still there as shortcuts). `ServerStorage/Lexicon.luau`
+maps typed text onto the 23 Mains, 14 Spices and 6 Twists:
+
+- ~1,500 words and phrases, with plurals and one-letter typos handled;
+- well-known anime, game, film and meme names map onto generic behaviours (e.g. an energy
+  fighter, a ninja, a wizard, a swordsman, a titan, a dragon, a UFO, a slime). Hazards are generic blocky
+  models labelled with what the player typed; nothing recreates a character's look;
+- unknown words still do something: an unknown Main falls from the sky as a labelled "Mystery
+  Thing", an unknown Spice is hashed onto a Spice (the reveal explains it);
+- everything stacks: extra describing words apply on top of the main pair, nouns typed anywhere
+  spawn their own hazard in the same dish, dishes keep running all round, and Twists now stack too.
+- Typed text is filtered with Roblox's `TextService` before anyone else sees it; if filtering fails
+  the dish shows the ingredient names instead.
+
+Every hazard has a looping 3D sound and every attack, impact and Twist has a sound cue
+(45 synthesized sounds in `assets/sounds/`, IDs in `Config.Sounds`).
 
 ## Lobby and matches
 
@@ -30,8 +50,9 @@ servers, so there a finished queue turns the current server into the match; set
 | Round loop: intermission + map vote, Chef draft, reveal, cook (ramps at 30 s), stacking dishes, sudden death from course 6, winner | `ServerScriptService/RoundManager.luau` |
 | Chef draft: weighted Chef picks, private hands from each Chef's Pantry, server-checked picks, ghosts and bots fill seats, Reroll Hand | `ServerScriptService/ChefDraft.luau` |
 | Dish resolver: secret recipes → base stats → Spices (doubles, opposites, no dead modifiers) → hard caps → danger budget → name + hint | `ServerScriptService/DishResolver.luau` |
-| 12 Mains + 2 seasonal (Pumpkins in October, Snowmen in December) | `ServerStorage/Mains/` |
-| 12 Spices, each with hooks for all four types | `ServerStorage/Spices/` |
+| 23 Mains + 2 seasonal (Pumpkins in October, Snowmen in December) | `ServerStorage/Mains/` |
+| 14 Spices, each with hooks for all four types | `ServerStorage/Spices/` |
+| Typed-text lexicon (words, character/media names, fallbacks) | `ServerStorage/Lexicon.luau` |
 | 6 Twists (ghost-voted) | `ServerStorage/Twists/` |
 | 14 secret recipes (Steam Bath, Popcorn, Avalanche, Disco Inferno, Mega Mech, Zombie Conga, Demolition Derby, Bowling Night, Volcano, Bath Time, Sinkhole, Thunderstorm, Stampede, Will-o'-Wisps) | `ServerStorage/Recipes/` |
 | Hazard engine: physics movers, floor tiles, creature/projectile/terrain/weather runners | `ServerStorage/HazardLib/` |

@@ -46,7 +46,7 @@ local function showEliminated(p: any)
 	UI.label(elimBody, { Text = (p.emoji or "") .. " " .. (p.dishName or "?"), Title = true, Size = UDim2.new(1, 0, 0.16, 0), Color = p.secret and UI.C.Grape or UI.C.Tomato, LayoutOrder = 2, ZIndex = 52 })
 	for i, ing in ipairs(p.ingredients or {}) do
 		local row, rf = UI.panel(elimBody, { Name = "Ing", Size = UDim2.new(1, 0, 0.13, 0), LayoutOrder = 2 + i, Color = ing.slot == "Main" and Color3.fromHex("FBD3CC") or Color3.fromHex("FFF0C2"), Corner = 10, StrokeThickness = 3, ZIndex = 52 })
-		UI.label(rf, { Text = string.format("%s %s  <font color=\"#8A6A55\">picked by %s</font>", ing.emoji, ing.name, ing.chef), Rich = true, Title = true, Size = UDim2.fromScale(0.94, 0.8), Position = UDim2.fromScale(0.03, 0.1), XAlign = Enum.TextXAlignment.Left, ZIndex = 53, MaxText = 22 })
+		UI.label(rf, { Text = string.format("%s %s%s  <font color=\"#8A6A55\">by %s</font>", ing.emoji, ing.name, (ing.acts and ing.acts ~= ing.name) and (" <font color=\"#8A6A55\">(" .. ing.acts .. ")</font>") or "", ing.chef), Rich = true, Title = true, Size = UDim2.fromScale(0.94, 0.8), Position = UDim2.fromScale(0.03, 0.1), XAlign = Enum.TextXAlignment.Left, ZIndex = 53, MaxText = 22 })
 	end
 	if p.twist and Catalog.Twists[p.twist] then
 		local tw = Catalog.Twists[p.twist]
@@ -81,10 +81,51 @@ local ghostRow: Frame
 local ghostTitle: TextLabel
 
 local function buildGhostVote()
-	ghostVote = UI.new("Frame", { Name = "GhostVote", Size = UDim2.fromScale(0.5, 0.3), Position = UDim2.new(0.5, 0, 1, -16), AnchorPoint = Vector2.new(0.5, 1), BackgroundTransparency = 1, Visible = false, ZIndex = 20, Parent = gui })
-	UI.new("UISizeConstraint", { MinSize = Vector2.new(320, 170), MaxSize = Vector2.new(640, 260), Parent = ghostVote })
-	ghostTitle = UI.label(ghostVote, { Text = "👻 GHOSTS: VOTE THE NEXT TWIST", Title = true, Size = UDim2.fromScale(1, 0.2), Color = Color3.fromHex("C9B6FF"), Stroke = 3, ZIndex = 21 })
-	ghostRow = UI.new("Frame", { Size = UDim2.fromScale(1, 0.78), Position = UDim2.fromScale(0, 0.22), BackgroundTransparency = 1, ZIndex = 21, Parent = ghostVote })
+	ghostVote = UI.new("Frame", { Name = "GhostVote", Size = UDim2.fromScale(0.56, 0.4), Position = UDim2.new(0.5, 0, 1, -16), AnchorPoint = Vector2.new(0.5, 1), BackgroundTransparency = 1, Visible = false, ZIndex = 20, Parent = gui })
+	UI.new("UISizeConstraint", { MinSize = Vector2.new(330, 230), MaxSize = Vector2.new(700, 340), Parent = ghostVote })
+	ghostTitle = UI.label(ghostVote, { Text = "👻 GHOSTS: VOTE THE NEXT TWIST", Title = true, Size = UDim2.fromScale(1, 0.15), Color = Color3.fromHex("C9B6FF"), Stroke = 3, ZIndex = 21 })
+	ghostRow = UI.new("Frame", { Size = UDim2.fromScale(1, 0.58), Position = UDim2.fromScale(0, 0.16), BackgroundTransparency = 1, ZIndex = 21, Parent = ghostVote })
+	-- ...or type a twist ("flood", "night", "moon"...)
+	local th, tf = UI.panel(ghostVote, { Name = "TwistBox", Size = UDim2.fromScale(0.66, 0.2), Position = UDim2.fromScale(0, 0.78), AnchorPoint = Vector2.zero, Color = UI.C.White, Corner = 12, ZIndex = 22 })
+	UI.minSize(th, 180, 60)
+	local box = UI.new("TextBox", {
+		Size = UDim2.fromScale(0.94, 0.8),
+		Position = UDim2.fromScale(0.03, 0.1),
+		BackgroundTransparency = 1,
+		Text = "",
+		PlaceholderText = "...or type a twist: flood, night, moon...",
+		PlaceholderColor3 = Color3.fromHex("A08A78"),
+		Font = UI.Theme.TitleFont,
+		TextScaled = true,
+		TextColor3 = UI.C.Chocolate,
+		ClearTextOnFocus = false,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 23,
+		Parent = tf,
+	})
+	UI.new("UITextSizeConstraint", { MaxTextSize = 26, MinTextSize = 12, Parent = box })
+	box:GetPropertyChangedSignal("Text"):Connect(function()
+		if #box.Text > 40 then
+			box.Text = string.sub(box.Text, 1, 40)
+		end
+		if box:IsFocused() then
+			UI.sound("Type", 0.3, 0.9 + math.random() * 0.3)
+		end
+	end)
+	local function send()
+		local text = string.gsub(box.Text, "^%s+", "")
+		if text ~= "" then
+			Net.event("GhostVote"):FireServer({ text = text })
+			box.Text = ""
+			UI.sound("Stamp", 0.6)
+		end
+	end
+	box.FocusLost:Connect(function(enter)
+		if enter then
+			send()
+		end
+	end)
+	UI.button(ghostVote, { Name = "SendTwist", Text = "VOTE 👻", Color = UI.C.Grape, Size = UDim2.fromScale(0.3, 0.2), Position = UDim2.fromScale(1, 0.78), AnchorPoint = Vector2.new(1, 0), ZIndex = 22 }, send)
 	UI.list(ghostRow, Enum.FillDirection.Horizontal, 10, Enum.HorizontalAlignment.Center, Enum.VerticalAlignment.Center)
 end
 
@@ -98,12 +139,13 @@ local function showGhostVote(s: any)
 			c:Destroy()
 		end
 	end
+	local nOpts = #(s.options or {})
 	for i, id in ipairs(s.options or {}) do
 		local tw = Catalog.Twists[id]
 		local n = s.counts and s.counts[id] or 0
 		UI.recipeCard(ghostRow, {
 			Name = id,
-			Size = UDim2.fromScale(0.3, 1),
+			Size = UDim2.fromScale(math.min(0.3, 0.95 / math.max(1, nOpts)), 1),
 			Rotation = (i - 2) * 3,
 			LayoutOrder = i,
 			SlotColor = UI.C.Grape,

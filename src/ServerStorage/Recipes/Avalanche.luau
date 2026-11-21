@@ -26,6 +26,7 @@ local function spawnBall(ctx)
 	obj.data.fixedDir = dir
 	obj.data.r = 4
 	obj.data.born = os.clock()
+	ctx:decorate(obj, "Roll")
 	return obj
 end
 

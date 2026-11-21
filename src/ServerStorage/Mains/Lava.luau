@@ -6,6 +6,7 @@ local Lava = {
 	id = "Lava",
 	type = "Terrain",
 	danger = 4,
+	sound = "Bubble",
 	-- Count = seed pools, Size = pool size, Speed = spread rate, Damage = per second
 	stats = { Size = 1, Speed = 1, Count = 4, Damage = 32, Health = 1 },
 	hint = { text = "The floor is lava! Get on high ground or into the water!", icon = "raised" },

@@ -5,6 +5,7 @@ return {
 	id = "InTheDark",
 	danger = 1,
 	Start = function(ctx)
+		ctx:fx("Sound", { name = "Whoosh", volume = 0.8 })
 		local saved = {
 			ClockTime = Lighting.ClockTime,
 			Brightness = Lighting.Brightness,

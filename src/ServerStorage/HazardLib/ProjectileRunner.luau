@@ -60,6 +60,8 @@ function ProjectileRunner.dropOne(ctx: any, main: any, at: Vector3?)
 		frozen = ctx:hasHook("Frozen") ~= nil,
 		invisible = ctx:hasHook("Invisible"),
 		style = cfg.style or "meteor",
+		label = cfg.style == "thing" and ctx.dish.label or nil,
+		palette = ctx.dish.palette,
 	})
 	ctx:delay(duration, function()
 		ProjectileRunner.impact(ctx, point, radius, stats.Damage)
@@ -91,7 +93,7 @@ local function spawnRoller(ctx: any, main: any)
 	if cfg.kind == "drive" then
 		model = Models.Cars(scale, CAR_COLORS[ctx.rng:NextInteger(1, #CAR_COLORS)])
 	else
-		model = (main.build or Models[main.id])(scale)
+		model = (main.build or Models[main.id])(scale, ctx)
 	end
 	local radius = (cfg.radius or 3) * scale
 	local obj = Mover.new(ctx, model, {
@@ -120,6 +122,7 @@ local function spawnRoller(ctx: any, main: any)
 	obj.slowSince = nil
 	obj.data.fixedDir = dir
 	ctx:hook("spawn", obj)
+	ctx:decorate(obj, main.sound or (cfg.kind == "drive" and "Engine" or "Roll"))
 	return obj
 end
 

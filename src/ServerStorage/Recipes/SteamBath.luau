@@ -42,6 +42,7 @@ function Recipe.Spawn(ctx)
 	end
 	place()
 	fog.Parent = ctx.folder
+	ctx:fx("Sound", { name = "Hiss", volume = 0.9 })
 	-- steam vents
 	for _ = 1, 10 do
 		local p = ctx:randomOpenPoint()

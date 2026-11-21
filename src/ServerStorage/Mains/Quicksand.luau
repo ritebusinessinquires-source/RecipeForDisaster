@@ -6,6 +6,7 @@ local Quicksand = {
 	id = "Quicksand",
 	type = "Terrain",
 	danger = 3,
+	sound = "Squelch",
 	stats = { Size = 1, Speed = 1, Count = 5, Damage = 22, Health = 1 },
 	hint = { text = "Keep to high ground - don't stop in the sand!", icon = "raised" },
 	terrain = {

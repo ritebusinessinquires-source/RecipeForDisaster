@@ -18,6 +18,10 @@ type State = {
 	slows: { [string]: { factor: number, untilT: number } },
 	iceBlock: BasePart?,
 	fire: Fire?,
+	poisonUntil: number,
+	poisonDps: number,
+	poisonDish: string?,
+	poisonFx: ParticleEmitter?,
 	invulnerableUntil: number,
 }
 
@@ -36,6 +40,10 @@ local function getState(player: any): State
 			slows = {},
 			iceBlock = nil,
 			fire = nil,
+			poisonUntil = 0,
+			poisonDps = 0,
+			poisonDish = nil,
+			poisonFx = nil,
 			invulnerableUntil = 0,
 		}
 		states[player] = s
@@ -62,6 +70,9 @@ function Status.reset(player: any)
 		end
 		if s.fire then
 			s.fire:Destroy()
+		end
+		if s.poisonFx then
+			s.poisonFx:Destroy()
 		end
 	end
 	states[player] = nil
@@ -165,6 +176,39 @@ function Status.burn(player: any, seconds: number, dps: number, dishId: string?)
 	end
 end
 
+-- Poison: green bubbles and damage over time.
+function Status.poison(player: any, seconds: number, dps: number, dishId: string?)
+	local _, _, root = charParts(player)
+	if not root then
+		return
+	end
+	local s = getState(player)
+	Status.recordHit(player, dishId)
+	s.poisonUntil = math.max(s.poisonUntil, os.clock() + seconds)
+	s.poisonDps = math.max(s.poisonDps, dps)
+	s.poisonDish = dishId or s.poisonDish
+	if not s.poisonFx or not s.poisonFx.Parent then
+		local e = Instance.new("ParticleEmitter")
+		e.Texture = "rbxasset://textures/particles/smoke_main.dds"
+		e.Color = ColorSequence.new(Color3.fromRGB(120, 230, 60))
+		e.Size = NumberSequence.new(0.8, 1.6)
+		e.Transparency = NumberSequence.new(0.3, 1)
+		e.Lifetime = NumberRange.new(0.6, 1)
+		e.Rate = 14
+		e.Speed = NumberRange.new(1, 3)
+		e.Parent = root
+		s.poisonFx = e
+	end
+	Net.fire(player, "ClientEffect", { kind = "Poisoned", duration = seconds })
+end
+
+-- Stun: you can barely move for a moment (Electric).
+function Status.stun(player: any, seconds: number, dishId: string?)
+	Status.recordHit(player, dishId)
+	Status.slow(player, "stun", 0.08, seconds)
+	Net.fire(player, "ClientEffect", { kind = "Stunned", duration = seconds })
+end
+
 function Status.slow(player: any, key: string, factor: number, seconds: number)
 	local s = getState(player)
 	s.slows[key] = { factor = factor, untilT = os.clock() + seconds }
@@ -190,6 +234,14 @@ function Status.tick(player: any, dt: number)
 		s.fire:Destroy()
 		s.fire = nil
 		s.burnDps = 0
+	end
+	-- poison
+	if s.poisonUntil > now then
+		Status.damage(player, s.poisonDps * dt, s.poisonDish)
+	elseif s.poisonFx then
+		s.poisonFx:Destroy()
+		s.poisonFx = nil
+		s.poisonDps = 0
 	end
 	-- frozen
 	local frozen = s.frozenUntil > now

@@ -179,9 +179,18 @@ local function dishPayloadIngredients(entry: any): { any }
 	local chefs = entry.chefs or {}
 	local out = {}
 	local ids = { dish.mainId, dish.spiceIds[1], dish.spiceIds[2] }
+	local typed = dish.typed and { dish.typed.main, dish.typed.spices[1], dish.typed.spices[2] } or {}
 	for i, id in ipairs(ids) do
 		local info = Catalog.ingredient(id)
-		table.insert(out, { id = id, name = info and info.name or id, emoji = info and info.emoji or "?", slot = i == 1 and "Main" or "Spice", chef = chefs[i] and chefs[i].name or "?" })
+		local canonical = info and info.name or id
+		table.insert(out, {
+			id = id,
+			name = typed[i] or canonical, -- what the Chef typed (filtered)
+			acts = canonical, -- what it behaves like
+			emoji = info and info.emoji or "?",
+			slot = i == 1 and "Main" or "Spice",
+			chef = chefs[i] and chefs[i].name or "?",
+		})
 	end
 	return out
 end
@@ -428,6 +437,12 @@ local function awardChefs(dish: any, chefs: { any })
 			end
 			Daily.progress(p, "cookSpice", { spices = dish.spiceIds })
 			Cookbook.add(p, dish, "cooked")
+			-- cooking with an ingredient you bought for your Pantry pays a little extra
+			local used = i == 1 and dish.mainId or dish.spiceIds[i - 1]
+			local info = used and Catalog.ingredient(used)
+			if data and info and (info.price or 0) > 0 and data.pantry[used] then
+				Economy.award(p, 15, "Signature ingredient: " .. info.name)
+			end
 		end
 	end
 	return isNew
@@ -499,6 +514,32 @@ local function revealPayload(dish: any, chefs: { any }, isNew: boolean): any
 		isNew = isNew,
 		dishOfDay = Daily.matchesDishOfDay(dish),
 		duration = T.Reveal,
+		-- everything stacks: extra things and extra describing words the Chefs typed
+		extraMains = (function()
+			local out = {}
+			for _, id in ipairs(dish.behaviour and dish.behaviour.extraMains or {}) do
+				local info = Catalog.Mains[id]
+				table.insert(out, { name = info and info.name or id, emoji = info and info.emoji or "?" })
+			end
+			return out
+		end)(),
+		extraSpices = (function()
+			local out = {}
+			for _, id in ipairs(dish.behaviour and dish.behaviour.extras or {}) do
+				local info = Catalog.Spices[id]
+				table.insert(out, { name = info and info.name or id, emoji = info and info.emoji or "?" })
+			end
+			return out
+		end)(),
+		stacked = (function()
+			local n = 0
+			for _, e in pairs(round and round.dishes or {}) do
+				if e.handle then
+					n += 1
+				end
+			end
+			return n + 1
+		end)(),
 	}
 end
 
@@ -593,7 +634,7 @@ function RoundManager.runRound(participants: { any }, mapId: string)
 			break
 		end
 		local dishId = "C" .. course
-		local dish = DishResolver.resolve(picks.main, picks.spice1, picks.spice2, twistId, {
+		local dish = DishResolver.resolveTyped(picks.entries, twistId, {
 			id = dishId,
 			course = course,
 			suddenDeath = sudden,
@@ -871,8 +912,24 @@ function RoundManager.init()
 			broadcastMapVote()
 		end
 	end)
-	Net.event("GhostVote").OnServerEvent:Connect(function(player, twistId)
-		if round and round.ghostVote and not round.alive[player] and type(twistId) == "string" and table.find(round.ghostVote.options, twistId) then
+	-- ghosts vote with a card, or type anything: { text = "flood" } -> Rising Water
+	Net.event("GhostVote").OnServerEvent:Connect(function(player, choice)
+		if not (round and round.ghostVote and not round.alive[player]) then
+			return
+		end
+		local twistId = nil
+		if type(choice) == "string" and table.find(round.ghostVote.options, choice) then
+			twistId = choice
+		elseif type(choice) == "table" and type(choice.text) == "string" then
+			local text = ChefDraft.sanitize(choice.text)
+			if text then
+				twistId = require(game:GetService("ServerStorage").Lexicon).resolveTwist(text)
+				if not table.find(round.ghostVote.options, twistId) and #round.ghostVote.options < 6 then
+					table.insert(round.ghostVote.options, twistId)
+				end
+			end
+		end
+		if twistId then
 			round.ghostVote.votes[player] = twistId
 			for _, p in ipairs(ghostList()) do
 				sendGhostVote(p)

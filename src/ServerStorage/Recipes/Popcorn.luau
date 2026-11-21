@@ -19,6 +19,7 @@ local Kernel = {
 	id = "Kernel",
 	stats = Recipe.stats,
 	creature = { mode = "ground", radius = 1.1, turnRate = 360, cooldown = 0.7, knock = 70, hop = 48, zigzag = 4, respawnDelay = 1.5 },
+	sound = "Bubble",
 	build = function(s)
 		local colors = { Color3.fromRGB(255, 250, 225), Color3.fromRGB(255, 236, 170), Color3.fromRGB(255, 245, 200) }
 		local m = Models.Blob(1.1 * s, colors[math.random(1, #colors)])

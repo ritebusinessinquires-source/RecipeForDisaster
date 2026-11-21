@@ -26,6 +26,7 @@ local HAZARD_LOOK = {
 	quicksand = { color = Color3.fromRGB(214, 178, 110), material = Enum.Material.Sand },
 	frost = { color = Color3.fromRGB(150, 210, 255), material = Enum.Material.Glacier },
 	steam = { color = Color3.fromRGB(235, 240, 245), material = Enum.Material.SmoothPlastic },
+	acid = { color = Color3.fromRGB(120, 235, 60), material = Enum.Material.Neon },
 }
 Tiles.Looks = HAZARD_LOOK
 

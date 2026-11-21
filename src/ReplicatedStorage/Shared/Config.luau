@@ -12,7 +12,7 @@ Config.LeaderboardPrefix = "RFD_Weekly_v1_"
 -- Phase timings (seconds)
 Config.Timings = {
 	Intermission = 15,
-	Draft = 10,
+	Draft = 15, -- time to type
 	Reveal = 5,
 	Cook = 45,
 	CookSuddenDeath = 30,
@@ -49,7 +49,7 @@ Config.Caps = {
 }
 Config.RampMultiplier = 1.3
 Config.FallbackDamageBoost = 1.3 -- "no dead modifiers"
-Config.TotalDishes = 6552 -- 12 Mains x 78 Spice pairs x 7 Twist options
+Config.TotalDishes = 16905 -- 23 Mains x 105 Spice pairs x 7 Twist options (typed words map onto these)
 
 Config.HandSize = 4
 Config.BiggerHandSize = 5
@@ -176,6 +176,39 @@ Config.Sounds = {
 	Whoosh = "rbxassetid://112252659998069",
 	Boing = "rbxassetid://91307414403922",
 	Music = "rbxassetid://70597692785149",
+	Type = "rbxassetid://71205436093914",
+	-- hazard loops
+	Buzz = "rbxassetid://105046532575682",
+	Groan = "rbxassetid://116372826413496",
+	Cluck = "rbxassetid://118792371969679",
+	RobotBeep = "rbxassetid://88601344009995",
+	Wail = "rbxassetid://75513535695179",
+	Roll = "rbxassetid://84891534292190",
+	Engine = "rbxassetid://124951866374366",
+	Bubble = "rbxassetid://137005501107893",
+	Squelch = "rbxassetid://71400276621596",
+	Wind = "rbxassetid://134605282940980",
+	Charge = "rbxassetid://79295051265306",
+	UfoHum = "rbxassetid://78387826782921",
+	Squeak = "rbxassetid://81170183032782",
+	Rain = "rbxassetid://138691723218916",
+	-- hazard one-shots
+	Laser = "rbxassetid://76237537994741",
+	Chomp = "rbxassetid://132117922953797",
+	Blast = "rbxassetid://127165171095209",
+	Shuriken = "rbxassetid://96888986873887",
+	Chime = "rbxassetid://140616152326542",
+	Zap = "rbxassetid://99843500128830",
+	Slash = "rbxassetid://93209109170049",
+	Stomp = "rbxassetid://71511013448094",
+	Roar = "rbxassetid://99527896185656",
+	FireBreath = "rbxassetid://110101002762842",
+	Boom = "rbxassetid://139218488869141",
+	Crack = "rbxassetid://100293605909783",
+	Hiss = "rbxassetid://100553952100552",
+	Whistle = "rbxassetid://95123740602768",
+	Thunder = "rbxassetid://107673912576850",
+	Honk = "rbxassetid://96052234701297",
 }
 
 return Config

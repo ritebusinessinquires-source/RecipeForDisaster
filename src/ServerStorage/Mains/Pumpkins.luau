@@ -6,6 +6,7 @@ local Pumpkins = {
 	id = "Pumpkins",
 	type = "Projectile",
 	danger = 3,
+	sound = "Roll",
 	seasonal = true,
 	stats = { Size = 1, Speed = 22, Count = 4, Damage = 25, Health = 150 },
 	hint = { text = "Duck behind low cover - mind the splat!", icon = "cover" },

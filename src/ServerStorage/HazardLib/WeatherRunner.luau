@@ -11,7 +11,7 @@ local WeatherRunner = {}
 function WeatherRunner.spawnOne(ctx: any, main: any): any
 	local cfg = main.weather
 	local s = ctx.stats.Size
-	local model = (main.build or Models[main.id])(s)
+	local model = (main.build or Models[main.id])(s, ctx)
 	local p = ctx:randomOpenPoint()
 	local _, d = ctx:nearestTarget(p, nil, true)
 	for _ = 1, 6 do
@@ -42,6 +42,7 @@ function WeatherRunner.spawnOne(ctx: any, main: any): any
 	obj.pullStrength = (cfg.pullStrength or 14) * (ctx.rampMult)
 	ctx:addPull(obj.root, obj.pullRadius, obj.pullStrength)
 	ctx:hook("spawn", obj)
+	ctx:decorate(obj, main.sound or "Wind")
 	return obj
 end
 

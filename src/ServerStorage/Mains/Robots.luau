@@ -6,6 +6,7 @@ local Robots = {
 	id = "Robots",
 	type = "Creature",
 	danger = 3,
+	sound = "RobotBeep",
 	stats = { Size = 1, Speed = 8, Count = 5, Damage = 18, Health = 90 },
 	hint = { text = "Hide behind low cover - it blocks lasers!", icon = "cover" },
 	creature = { mode = "ground", radius = 1.6, turnRate = 150, cooldown = 1.2, knock = 20, poofColor = Color3.fromRGB(170, 180, 190) },
@@ -27,6 +28,7 @@ function Robots.fireBolt(ctx, from, to, damage, opts)
 	end
 	local speed = opts.speed or 85
 	local travel = (to - from).Magnitude / speed
+	ctx:sound(opts.sound or "Laser", from, opts.volume or 0.55)
 	ctx:fx("Bolt", { from = from, to = to, duration = travel, color = opts.color, width = opts.width })
 	ctx:delay(travel, function()
 		for _, t in ipairs(ctx:targets()) do

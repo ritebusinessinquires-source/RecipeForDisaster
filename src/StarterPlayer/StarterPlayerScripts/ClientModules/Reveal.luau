@@ -70,7 +70,7 @@ local function build()
 	jokeLabel = UI.label(root, { Text = "", Size = UDim2.fromScale(0.7, 0.05), Position = UDim2.fromScale(0.5, 0.5), AnchorPoint = Vector2.new(0.5, 0.5), Color = UI.C.White, Stroke = 2, ZIndex = 41 })
 end
 
-local function dropIngredient(emoji: string, text: string, slotColor: Color3, chef: string, index: number)
+local function dropIngredient(emoji: string, text: string, slotColor: Color3, chef: string, index: number, acts: string?)
 	local holder = UI.recipeCard(dropLayer, {
 		Name = "Drop",
 		Size = UDim2.fromScale(0.12, 0.22),
@@ -83,7 +83,7 @@ local function dropIngredient(emoji: string, text: string, slotColor: Color3, ch
 		Text = text,
 		ZIndex = 36,
 	})
-	caption.Text = string.upper(text) .. "  -  by " .. chef
+	caption.Text = string.upper(text) .. ((acts and acts ~= text) and ("  (" .. acts .. ")") or "") .. "  -  by " .. chef
 	caption.Visible = true
 	UI.pop(caption)
 	UI.sound("Whoosh", 0.5, 1 + index * 0.1)
@@ -121,7 +121,7 @@ local function play(payload: any)
 	local steps = {}
 	for i, ing in ipairs(payload.ingredients or {}) do
 		local color = ing.slot == "Main" and UI.C.Tomato or UI.C.Mustard
-		table.insert(steps, { ing.emoji, ing.name, color, ing.chef, i })
+		table.insert(steps, { ing.emoji, ing.name, color, ing.chef, i, ing.acts })
 	end
 	if payload.twist then
 		table.insert(steps, { payload.twist.emoji, payload.twist.name, UI.C.Grape, "the ghosts", 4 })
@@ -130,7 +130,7 @@ local function play(payload: any)
 	for i, st in ipairs(steps) do
 		task.delay(0.25 + (i - 1) * per, function()
 			if playing == myPlay then
-				dropIngredient(st[1], st[2], st[3], st[4], st[5])
+				dropIngredient(st[1], st[2], st[3], st[4], st[5], st[6])
 			end
 		end)
 	end
@@ -158,6 +158,9 @@ local function play(payload: any)
 		if payload.suddenDeath then
 			table.insert(tags, "🔥 SUDDEN DEATH: FREE FAST SPICE")
 		end
+		if (payload.stacked or 1) > 1 then
+			table.insert(tags, "🍲 " .. payload.stacked .. " DISHES STACKED")
+		end
 		tagLabel.Text = table.concat(tags, "   ")
 		if payload.secret then
 			secretBanner.Visible = true
@@ -174,6 +177,16 @@ local function play(payload: any)
 		local jokes = payload.jokes or {}
 		if payload.wasted then
 			table.insert(jokes, 1, payload.confused and "Fast + Slow = Confused! Wasted Spice bonus for both Chefs." or "Giant + Tiny cancel out! Wasted Spice bonus for both Chefs.")
+		end
+		local extras = {}
+		for _, x in ipairs(payload.extraMains or {}) do
+			table.insert(extras, x.emoji .. " " .. x.name)
+		end
+		for _, x in ipairs(payload.extraSpices or {}) do
+			table.insert(extras, x.emoji .. " " .. x.name)
+		end
+		if #extras > 0 then
+			table.insert(jokes, 1, "Also in the pot: " .. table.concat(extras, ", "))
 		end
 		jokeLabel.Text = table.concat(jokes, "  ")
 	end)

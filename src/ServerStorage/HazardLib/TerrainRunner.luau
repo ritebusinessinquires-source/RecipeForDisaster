@@ -1,6 +1,8 @@
 -- Terrain type: changes the ground. Seeds appear on floor tiles and spread. Standing on an
 -- owned tile applies the Main's effect. Raised spots and water are never tiles, so they're safe.
 
+local Config = require(game:GetService("ReplicatedStorage"):WaitForChild("Shared"):WaitForChild("Config"))
+
 local TerrainRunner = {}
 
 local rayParams = RaycastParams.new()
@@ -39,6 +41,7 @@ function TerrainRunner.run(ctx: any, main: any)
 	local maxTiles = math.floor(math.clamp(ctx.stats.Count * 7 * ctx.stats.Size ^ 2, 4, #tiles.list * 0.42))
 	ctx.maxTiles = maxTiles
 
+	local loops = 0
 	local function convert(t: any)
 		if t.hazard then
 			return
@@ -47,6 +50,23 @@ function TerrainRunner.run(ctx: any, main: any)
 		table.insert(owned, t)
 		table.insert(frontier, t)
 		ctx:hook("tileConverted", t)
+		-- a few bubbling / squelching sounds spread over the pools
+		if loops < 4 and #owned % 6 == 1 then
+			loops += 1
+			local id = Config.Sounds[main.sound or "Bubble"]
+			if id and id ~= "" then
+				local snd = Instance.new("Sound")
+				snd.SoundId = id
+				snd.Looped = true
+				snd.Volume = 0.5
+				snd.RollOffMaxDistance = 80
+				snd.Parent = t.part
+				snd:Play()
+				ctx:onCleanup(function()
+					snd:Destroy()
+				end)
+			end
+		end
 	end
 
 	local function seed()

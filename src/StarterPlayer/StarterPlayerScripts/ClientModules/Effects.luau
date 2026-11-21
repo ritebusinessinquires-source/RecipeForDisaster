@@ -68,6 +68,26 @@ local function burst(pos: Vector3, color: Color3, count: number, size: number?, 
 	Debris:AddItem(holder, 2)
 end
 
+-- One-shot sound at a spot in the world (falls off with distance).
+local function sound3d(name: string, pos: Vector3, volume: number?, pitch: number?)
+	local id = Config.Sounds[name]
+	if not id or id == "" or typeof(pos) ~= "Vector3" then
+		return
+	end
+	local holder = part({ Size = Vector3.one, Position = pos, Transparency = 1 })
+	local snd = Instance.new("Sound")
+	snd.SoundId = id
+	snd.Volume = volume or 0.7
+	snd.PlaybackSpeed = pitch or 1
+	snd.RollOffMode = Enum.RollOffMode.InverseTapered
+	snd.RollOffMinDistance = 10
+	snd.RollOffMaxDistance = 220
+	snd.Parent = holder
+	snd:Play()
+	Debris:AddItem(holder, 8)
+end
+Effects.sound3d = sound3d
+
 ---------------------------------------------------------------- camera shake
 
 local shakeUntil = 0
@@ -83,6 +103,39 @@ local handlers: { [string]: (any) -> () } = {}
 
 handlers.Poof = function(p)
 	burst(p.pos, p.color or Color3.new(1, 1, 1), 12, 2, 10)
+	sound3d("Pop", p.pos, 0.35, 0.8 + math.random() * 0.5)
+end
+
+handlers.Sound = function(p)
+	if typeof(p.pos) == "Vector3" then
+		sound3d(p.name, p.pos, p.volume, p.pitch)
+	else
+		UI.sound(p.name, p.volume or 0.7, p.pitch)
+	end
+end
+
+-- energy gathering before a fighter's blast
+handlers.Charge = function(p)
+	local ball = part({ Shape = Enum.PartType.Ball, Size = Vector3.one * 0.5, Position = p.pos, Color = Color3.fromRGB(150, 230, 255), Material = Enum.Material.Neon, Transparency = 0.2 })
+	TweenService:Create(ball, TweenInfo.new(p.duration or 0.45), { Size = Vector3.one * 3.5, Transparency = 0.5 }):Play()
+	Debris:AddItem(ball, (p.duration or 0.45) + 0.05)
+	sound3d("Charge", p.pos, 0.6)
+end
+
+-- a sword slash skimming along the ground
+handlers.Wave = function(p)
+	local from: Vector3, dir: Vector3 = p.from, p.dir
+	local len = p.length or 30
+	local dur = p.duration or 0.45
+	local wave = part({
+		Size = Vector3.new(7, 2.2, 1.2),
+		CFrame = CFrame.lookAt(from, from + dir),
+		Color = p.color or Color3.fromRGB(220, 235, 255),
+		Material = Enum.Material.Neon,
+		Transparency = 0.25,
+	})
+	TweenService:Create(wave, TweenInfo.new(dur, Enum.EasingStyle.Linear), { CFrame = CFrame.lookAt(from + dir * len, from + dir * (len + 1)), Transparency = 0.8 }):Play()
+	Debris:AddItem(wave, dur + 0.05)
 end
 
 handlers.Shockwave = function(p)
@@ -114,21 +167,36 @@ handlers.Meteor = function(p)
 	local style = p.style or "meteor"
 	local from = to + Vector3.new(height * 0.25, height, -height * 0.15)
 	local rockSize = style == "rubble" and 2 or 3.6 * size
+	local thingColors = { Color3.fromRGB(232, 74, 58), Color3.fromRGB(255, 201, 60), Color3.fromRGB(76, 175, 80), Color3.fromRGB(80, 140, 230), Color3.fromRGB(123, 79, 214), Color3.fromRGB(255, 143, 184), Color3.fromRGB(47, 181, 168), Color3.fromRGB(240, 240, 240) }
+	local isThing = style == "thing"
 	local rock = part({
-		Shape = Enum.PartType.Ball,
-		Size = Vector3.one * rockSize,
+		Shape = isThing and Enum.PartType.Block or Enum.PartType.Ball,
+		Size = isThing and Vector3.new(rockSize * 1.3, rockSize, rockSize * 1.3) or Vector3.one * rockSize,
 		Position = from,
-		Color = p.frozen and Color3.fromRGB(160, 215, 255) or Color3.fromRGB(110, 90, 80),
-		Material = p.frozen and Enum.Material.Ice or Enum.Material.Slate,
+		Color = isThing and thingColors[((p.palette or 1) - 1) % #thingColors + 1] or (p.frozen and Color3.fromRGB(160, 215, 255) or Color3.fromRGB(110, 90, 80)),
+		Material = isThing and Enum.Material.SmoothPlastic or (p.frozen and Enum.Material.Ice or Enum.Material.Slate),
 		Transparency = p.invisible and 0.92 or 0,
 		CastShadow = false,
 	})
+	if isThing and p.label and not p.invisible then
+		-- whatever the Chef typed, floating on the falling thing
+		local bb = Instance.new("BillboardGui")
+		bb.Size = UDim2.fromOffset(200, 40)
+		bb.StudsOffset = Vector3.new(0, rockSize, 0)
+		bb.AlwaysOnTop = true
+		bb.MaxDistance = 200
+		bb.Parent = rock
+		UI.label(bb, { Text = p.label, Title = true, Color = UI.C.Cream, Stroke = 2.5 })
+	end
+	if style ~= "rubble" then
+		sound3d("Whistle", to + Vector3.new(0, 20, 0), 0.45, 1.2 / math.max(0.5, dur * 0.6))
+	end
 	if p.flaming then
 		local f = Instance.new("Fire")
 		f.Size = rockSize * 2
 		f.Heat = 15
 		f.Parent = rock
-	elseif not p.invisible and style ~= "rubble" then
+	elseif not p.invisible and style ~= "rubble" and style ~= "thing" then
 		local trail = Instance.new("Fire")
 		trail.Size = rockSize * 1.2
 		trail.Color = Color3.fromRGB(255, 160, 60)
@@ -147,6 +215,7 @@ handlers.Meteor = function(p)
 		shadow:Destroy()
 		if style ~= "rubble" then
 			burst(to, p.frozen and Color3.fromRGB(200, 235, 255) or Color3.fromRGB(150, 130, 110), 10, 3 * size, 14)
+			sound3d("Boom", to, math.clamp(0.4 * size, 0.3, 1), 1.1 - math.min(0.4, size * 0.08))
 		end
 	end)
 end
@@ -189,9 +258,18 @@ handlers.Arc = function(p)
 		Shape = Enum.PartType.Ball,
 		Size = Vector3.one * size,
 		Position = from,
-		Color = style == "lava" and Color3.fromRGB(255, 90, 20) or (style == "bomb" and Color3.fromRGB(30, 30, 35) or Color3.fromRGB(110, 90, 80)),
-		Material = style == "lava" and Enum.Material.Neon or Enum.Material.SmoothPlastic,
+		Color = style == "magic" and Color3.fromRGB(170, 120, 255) or (style == "lava" and Color3.fromRGB(255, 90, 20) or (style == "bomb" and Color3.fromRGB(30, 30, 35) or Color3.fromRGB(110, 90, 80))),
+		Material = (style == "lava" or style == "magic") and Enum.Material.Neon or Enum.Material.SmoothPlastic,
 	})
+	if style == "magic" then
+		local sp = Instance.new("Sparkles")
+		sp.SparkleColor = Color3.fromRGB(200, 170, 255)
+		sp.Parent = ball
+		local l = Instance.new("PointLight")
+		l.Color = Color3.fromRGB(170, 120, 255)
+		l.Range = 12
+		l.Parent = ball
+	end
 	if style == "lava" then
 		local f = Instance.new("Fire")
 		f.Size = 6
@@ -222,7 +300,7 @@ handlers.Splash = function(p)
 end
 
 handlers.Honk = function()
-	UI.sound("Whoosh", 0.4, 0.6)
+	UI.sound("Honk", 0.45, 0.9 + math.random() * 0.25)
 end
 
 handlers.Banner = function(p)
@@ -279,9 +357,10 @@ handlers.Lightning = function(p)
 	local cc = Lighting:FindFirstChild("RFDFlash") or Instance.new("ColorCorrectionEffect")
 	cc.Name = "RFDFlash"
 	cc.Parent = Lighting
-	cc.Brightness = 0.5
+	cc.Brightness = p.small and 0.15 or 0.5
 	TweenService:Create(cc, TweenInfo.new(0.3), { Brightness = 0 }):Play()
-	Effects.shake(0.5, 0.3)
+	Effects.shake(p.small and 0.2 or 0.5, 0.3)
+	sound3d(p.small and "Zap" or "Thunder", pos, p.small and 0.6 or 1)
 end
 
 local musicTint: ColorCorrectionEffect? = nil
@@ -341,9 +420,20 @@ handlers.Rain = function(p)
 		e.EmissionDirection = Enum.NormalId.Bottom
 		e.Rate = 400
 		e.Parent = rainPart
+		local rain = Instance.new("Sound")
+		rain.SoundId = Config.Sounds.Rain or ""
+		rain.Looped = true
+		rain.Volume = 0.35
+		rain.Parent = SoundService
+		rain.Name = "RFDRain"
+		rain:Play()
 	elseif not p.on and rainPart then
 		rainPart:Destroy()
 		rainPart = nil
+		local rain = SoundService:FindFirstChild("RFDRain")
+		if rain then
+			rain:Destroy()
+		end
 	end
 end
 
@@ -433,6 +523,16 @@ local function onClientEffect(e: any)
 		setOverlay("❄️ FROZEN!", Color3.fromRGB(150, 210, 255))
 		task.delay(e.duration or 1, function()
 			if os.clock() >= frozenUntil and not upsideDown then
+				setOverlay(nil)
+			end
+		end)
+	elseif e.kind == "Stunned" or e.kind == "Poisoned" then
+		local stun = e.kind == "Stunned"
+		setOverlay(stun and "⚡ STUNNED!" or "☠️ POISONED!", stun and Color3.fromRGB(90, 170, 230) or Color3.fromRGB(90, 170, 60))
+		local myUntil = os.clock() + (e.duration or 1)
+		frozenUntil = math.max(frozenUntil, myUntil)
+		task.delay(e.duration or 1, function()
+			if os.clock() >= frozenUntil - 0.05 and not upsideDown then
 				setOverlay(nil)
 			end
 		end)
@@ -584,6 +684,7 @@ function Effects.init(gui: ScreenGui)
 	Net.event("Knockback").OnClientEvent:Connect(onKnockback)
 	Net.event("Rumble").OnClientEvent:Connect(function(intensity, duration)
 		Effects.shake(tonumber(intensity) or 0.5, tonumber(duration) or 0.5)
+		UI.sound("Stomp", math.clamp((tonumber(intensity) or 0.5) * 0.35, 0.15, 0.6), 0.7)
 	end)
 	Net.event("ClientEffect").OnClientEvent:Connect(onClientEffect)
 	Net.event("Taunt").OnClientEvent:Connect(onTaunt)

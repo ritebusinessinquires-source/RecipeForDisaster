@@ -27,7 +27,7 @@ function Cookbook.add(player: any, dish: any, how: string)
 	end
 	local key = dish.key
 	if not data.cookbook[key] then
-		data.cookbook[key] = true
+		data.cookbook[key] = string.sub(dish.name or "", 1, 70)
 		data.cookbookCount += 1
 		Economy.award(player, Config.Economy.NewCookbookEntry, "New in your Cookbook: " .. dish.name)
 		Daily.progress(player, "cookbook", {})
@@ -52,9 +52,13 @@ function Cookbook.fetch(player: any): any
 		return nil
 	end
 	local entries = {}
-	for key in pairs(data.cookbook) do
+	for key, saved in pairs(data.cookbook) do
 		local info = DishResolver.info(key)
 		if info then
+			if type(saved) == "string" and saved ~= "" then
+				info = table.clone(info)
+				info.name = saved -- the name the Chefs actually typed
+			end
 			table.insert(entries, info)
 		end
 	end
@@ -93,9 +97,10 @@ function Cookbook.fetch(player: any): any
 		end
 		table.insert(secrets, entry)
 	end
+	local nS = #Catalog.SpiceOrder
 	return {
 		count = data.cookbookCount,
-		total = Config.TotalDishes,
+		total = #Catalog.MainOrder * (nS * (nS + 1) / 2) * (#Catalog.TwistOrder + 1),
 		entries = entries,
 		secrets = secrets,
 		badges = data.badges,

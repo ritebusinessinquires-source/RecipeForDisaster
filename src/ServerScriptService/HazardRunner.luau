@@ -34,7 +34,21 @@ function HazardRunner.start(dish: any, env: any): any
 			warn("[HazardRunner] spawn error for", dish.name, err)
 		end
 	end)
-	local handle = { dish = dish, ctx = ctx, twistCtx = nil }
+	local handle = { dish = dish, ctx = ctx, twistCtx = nil, subs = {} }
+	-- extra things typed into the same dish run alongside it (credited to the same Chefs)
+	for _, sub in ipairs(dish.components or {}) do
+		sub.label = sub.label or dish.label
+		sub.palette = sub.palette or dish.palette
+		local sctx = Context.new(sub, env)
+		table.insert(handle.subs, sctx)
+		local fn = sub.secretId and DishResolver.Recipes[sub.secretId].Spawn or DishResolver.Mains[sub.mainId].Spawn
+		task.spawn(function()
+			local ok, err = pcall(fn, sctx)
+			if not ok then
+				warn("[HazardRunner] component spawn error for", sub.name, err)
+			end
+		end)
+	end
 	if dish.twistId and DishResolver.Twists[dish.twistId] then
 		local tctx = Context.new({ id = tostring(dish.id) .. "_twist", creditId = dish.id, name = dish.name, type = "Twist", stats = {}, hooks = {} }, env)
 		handle.twistCtx = tctx
@@ -52,26 +66,29 @@ end
 function HazardRunner.ramp(handle: any)
 	if handle and handle.ctx then
 		handle.ctx.rampMult = Config.RampMultiplier
+		for _, sctx in ipairs(handle.subs or {}) do
+			sctx.rampMult = Config.RampMultiplier
+		end
 	end
 end
 
--- Twists last for their own course only.
-function HazardRunner.endTwist(handle: any)
-	if handle and handle.twistCtx then
-		handle.twistCtx:stop()
-		handle.twistCtx = nil
-	end
-end
+-- Everything stacks: Twists keep running with their dish until the round ends.
+function HazardRunner.endTwist(_handle: any) end
 
 function HazardRunner.running(): { any }
 	return running
 end
 
 function HazardRunner.stopAll()
-	for _, h in ipairs(running) do
+	-- newest first, so stacked Twists restore lighting/gravity in the right order
+	for i = #running, 1, -1 do
+		local h = running[i]
 		pcall(function()
 			if h.twistCtx then
 				h.twistCtx:stop()
+			end
+			for _, sctx in ipairs(h.subs or {}) do
+				sctx:stop()
 			end
 			h.ctx:stop()
 		end)

@@ -108,11 +108,29 @@ function Context:knockback(target: Target, velocity: Vector3)
 end
 
 function Context:freeze(target: Target, seconds: number)
+	if not Status.isFrozen(target.player) then
+		self:sound("Crack", target.root.Position, 0.6)
+	end
 	Status.freeze(target.player, seconds, self:creditId())
 end
 
 function Context:burn(target: Target, seconds: number, dps: number)
 	Status.burn(target.player, seconds, dps * self:damageMult(), self:creditId())
+end
+
+function Context:poison(target: Target, seconds: number, dps: number)
+	Status.poison(target.player, seconds, dps * self:damageMult(), self:creditId())
+	self:sound("Hiss", target.root.Position, 0.5)
+end
+
+function Context:stun(target: Target, seconds: number)
+	Status.stun(target.player, seconds, self:creditId())
+	self:sound("Zap", target.root.Position, 0.6)
+end
+
+-- One-shot positional sound, played on every client.
+function Context:sound(name: string, pos: Vector3, volume: number?, pitch: number?)
+	Net.fireAll("FX", "Sound", { name = name, pos = pos, volume = volume, pitch = pitch })
 end
 
 function Context:slow(target: Target, factor: number, seconds: number, key: string?)
@@ -130,6 +148,7 @@ function Context:explode(pos: Vector3, radius: number, damage: number, opts: any
 	e.ExplosionType = Enum.ExplosionType.NoCraters
 	e.Visible = opts.visible ~= false
 	e.Parent = self.folder
+	self:sound(opts.sound or "Boom", pos, math.clamp(radius / 10, 0.4, 1), opts.pitch)
 	Debris:AddItem(e, 3)
 	for _, t in ipairs(self:targets()) do
 		local d = (t.root.Position - pos)
@@ -347,6 +366,52 @@ end
 
 function Context:addObject(obj: any)
 	table.insert(self.objects, obj)
+end
+
+-- Floating name tag with what the Chef typed (first few objects only, so swarms stay readable).
+function Context:decorate(obj: any, loopSound: string?)
+	self.decorated = (self.decorated or 0) + 1
+	local root = obj.root
+	if not root then
+		return
+	end
+	local label = self.dish.label
+	if label and label ~= "" and self.decorated <= 6 then
+		local bb = Instance.new("BillboardGui")
+		bb.Name = "DishLabel"
+		bb.Size = UDim2.fromOffset(180, 34)
+		bb.StudsOffset = Vector3.new(0, (obj.radius or 2) + 3.5, 0)
+		bb.MaxDistance = 140
+		bb.LightInfluence = 0
+		bb.AlwaysOnTop = false
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.fromScale(1, 1)
+		t.BackgroundTransparency = 1
+		t.Font = Enum.Font.FredokaOne
+		t.TextScaled = true
+		t.Text = label
+		t.TextColor3 = Color3.fromRGB(255, 244, 220)
+		t.Parent = bb
+		local st = Instance.new("UIStroke")
+		st.Thickness = 2.5
+		st.Color = Color3.fromRGB(59, 36, 24)
+		st.Parent = t
+		bb.Parent = root
+	end
+	local id = loopSound and Config.Sounds[loopSound]
+	if id and id ~= "" and self.decorated <= 4 then
+		local snd = Instance.new("Sound")
+		snd.Name = "HazardLoop"
+		snd.SoundId = id
+		snd.Looped = true
+		snd.Volume = 0.55
+		snd.RollOffMode = Enum.RollOffMode.InverseTapered
+		snd.RollOffMinDistance = 8
+		snd.RollOffMaxDistance = 110
+		snd.PlaybackSpeed = math.clamp(1.15 / math.sqrt(math.max(0.3, self.stats.Size or 1)), 0.55, 1.6) * self.rng:NextNumber(0.93, 1.07)
+		snd.Parent = root
+		snd:Play()
+	end
 end
 
 function Context:removeObject(obj: any)

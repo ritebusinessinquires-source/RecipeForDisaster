@@ -23,17 +23,32 @@ Catalog.Mains = {
 	Lava = { name = "Lava", emoji = "🌋", type = "Terrain", price = 0, starter = true, blurb = "The floor is lava. Literally. Get high or get wet." },
 	Quicksand = { name = "Quicksand", emoji = "⏳", type = "Terrain", price = 500, blurb = "Sticky sand patches that slow you down and swallow you." },
 	Tornado = { name = "Tornado", emoji = "🌪️", type = "Weather", price = 1000, blurb = "A wandering twister that pulls everyone in." },
+	-- Archetypes for typed ingredients (anime fighters, wizards, kaiju...)
+	Fighter = { name = "Fighter", emoji = "🥋", type = "Creature", price = 900, blurb = "Dashes at you and fires energy blasts. Hide behind cover." },
+	Ninja = { name = "Ninja", emoji = "🥷", type = "Creature", price = 1100, blurb = "Teleports behind you and throws shuriken. Keep moving." },
+	Wizard = { name = "Wizard", emoji = "🧙", type = "Creature", price = 1100, blurb = "Keeps its distance, teleports and lobs magic orbs." },
+	Swordsman = { name = "Swordsman", emoji = "⚔️", type = "Creature", price = 900, blurb = "Sends sword slashes along the ground. Jump or climb!" },
+	Titan = { name = "Titan", emoji = "🗿", type = "Creature", price = 1400, blurb = "A towering giant whose stomps send out shockwaves." },
+	Dragon = { name = "Dragon", emoji = "🐉", type = "Creature", price = 1500, blurb = "Circles overhead and breathes lines of fire." },
+	UFO = { name = "UFO", emoji = "🛸", type = "Creature", price = 1300, blurb = "Hovers over you, beams you up and zaps lasers." },
+	Slime = { name = "Slime", emoji = "🟢", type = "Creature", price = 300, blurb = "Hopping goo that slows you down." },
+	Critter = { name = "Critter", emoji = "🐾", type = "Creature", price = 200, blurb = "Small, fast, zig-zagging animals." },
+	Storm = { name = "Storm", emoji = "⛈️", type = "Weather", price = 1000, blurb = "Lightning strikes anyone who stands still." },
+	Thing = { name = "Mystery Thing", emoji = "📦", type = "Projectile", price = 0, starter = true, blurb = "Anything the game doesn't know falls from the sky." },
 	-- Seasonal (only cookable during their event month)
 	Pumpkins = { name = "Pumpkins", emoji = "🎃", type = "Projectile", price = 0, seasonal = true, blurb = "October only: giant pumpkins roll and splat." },
 	Snowmen = { name = "Snowmen", emoji = "⛄", type = "Creature", price = 0, seasonal = true, blurb = "December only: snowmen that waddle after you." },
 }
-Catalog.MainOrder = { "Bees", "Zombies", "Chickens", "Sharks", "Robots", "Ghosts", "Meteors", "Boulders", "Cars", "Lava", "Quicksand", "Tornado" }
+Catalog.MainOrder = {
+	"Bees", "Zombies", "Chickens", "Sharks", "Robots", "Ghosts", "Meteors", "Boulders", "Cars", "Lava", "Quicksand", "Tornado",
+	"Fighter", "Ninja", "Wizard", "Swordsman", "Titan", "Dragon", "UFO", "Slime", "Critter", "Storm", "Thing",
+}
 Catalog.SeasonalOrder = { "Pumpkins", "Snowmen" }
 
 Catalog.Spices = {
 	Giant = { name = "Giant", emoji = "🐘", price = 0, starter = true, sizeWord = true, double = "Colossal", blurb = "Huge and slow. Size x3, Speed x0.7." },
 	Tiny = { name = "Tiny", emoji = "🤏", price = 0, starter = true, sizeWord = true, double = "Microscopic", blurb = "Small but many. They can't climb." },
-	Fast = { name = "Fast", emoji = "⚡", price = 0, starter = true, double = "Turbo", blurb = "Everything moves faster." },
+	Fast = { name = "Fast", emoji = "💨", price = 0, starter = true, double = "Turbo", blurb = "Everything moves faster." },
 	Slow = { name = "Slow", emoji = "🐌", price = 250, double = "Glacial", blurb = "Slower, but hits harder." },
 	Slippery = { name = "Slippery", emoji = "🧈", price = 0, starter = true, double = "Greased", blurb = "Leaves ice behind. Hard to stop on." },
 	Exploding = { name = "Exploding", emoji = "💥", price = 1000, double = "Megaton", blurb = "Blows up on contact." },
@@ -43,8 +58,10 @@ Catalog.Spices = {
 	Bouncy = { name = "Bouncy", emoji = "🏀", price = 400, double = "Super Bouncy", blurb = "Boing! Big knockback." },
 	Swarm = { name = "Swarm", emoji = "🐜", price = 750, double = "Horde", blurb = "Three times as many, a bit smaller." },
 	Magnetic = { name = "Magnetic", emoji = "🧲", price = 1500, double = "Mega-Magnetic", blurb = "Pulls players in." },
+	Electric = { name = "Electric", emoji = "⚡", price = 800, double = "Supercharged", blurb = "Zaps and stuns you for a moment." },
+	Poison = { name = "Poison", emoji = "☠️", price = 800, double = "Toxic", blurb = "Leaves you poisoned and leaves toxic puddles." },
 }
-Catalog.SpiceOrder = { "Giant", "Tiny", "Fast", "Slow", "Slippery", "Exploding", "Flaming", "Frozen", "Invisible", "Bouncy", "Swarm", "Magnetic" }
+Catalog.SpiceOrder = { "Giant", "Tiny", "Fast", "Slow", "Slippery", "Exploding", "Flaming", "Frozen", "Invisible", "Bouncy", "Swarm", "Magnetic", "Electric", "Poison" }
 
 Catalog.Twists = {
 	InTheDark = { name = "In the Dark", emoji = "🌑", suffix = "in the Dark", blurb = "Lights out. Hazards glow faintly." },
