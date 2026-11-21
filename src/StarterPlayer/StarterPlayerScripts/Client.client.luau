@@ -5,6 +5,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TextChatService = game:GetService("TextChatService")
 
 local player = Players.LocalPlayer
+local Net = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Net"))
 local Modules = script.Parent:WaitForChild("ClientModules")
 
 local UI = require(Modules.UI)
@@ -41,6 +42,11 @@ HUD.onMenu = function(name: string)
 		Menus.close()
 		task.wait(0.22)
 	end
+	if name == "Lobby" then
+		Toasts.show("Heading back to the lobby... 🏠", "info")
+		Net.event("ReturnToLobby"):FireServer()
+		return
+	end
 	if name == "Spin" then
 		Menus.openTab("Shop", "Spin")
 	elseif name == "Ranks" or name == "Cookbook" or name == "Shop" or name == "Daily" then
@@ -57,6 +63,16 @@ end
 Results.confetti = function()
 	Effects.confetti(topGui)
 end
+
+-- matchmaking / teleport messages
+Net.event("TeleportNotice").OnClientEvent:Connect(function(n)
+	if type(n) == "table" and n.text then
+		Toasts.show(n.text, n.kind == "error" and "big" or "quest")
+		if n.kind == "go" then
+			HUD.bigText(n.text, UI.C.Basil, 3)
+		end
+	end
+end)
 
 -- VIP name tag colour in chat
 pcall(function()

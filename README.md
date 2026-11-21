@@ -7,10 +7,26 @@ Dark"). 12 Mains × 78 Spice pairs × 7 Twist options = **6,552 dishes**, plus 1
 - Universe `10778121901`, place `77411074610403` (Roblox game page: https://www.roblox.com/games/77411074610403)
 - Built from the *Recipe for Disaster — Game Design Doc* (Nov 20, 2026)
 
+## Lobby and matches
+
+One place runs in two modes (`ServerScriptService/Bootstrap.luau`):
+
+- **Lobby** (public servers): players spawn in the TV-studio lobby. Standing on the green
+  **PLAY** pad joins the queue; stepping off leaves it. A 20 s countdown starts with the first
+  player (3 s once 20 are queued), then the queued players — up to **20** — are teleported
+  together into a fresh reserved server. Overflow players start the next group.
+- **Match** (reserved servers): waits up to 25 s for the whole group to arrive, then runs rounds
+  back to back. The **🏠 Lobby** button sends a player back to a public lobby server.
+
+Queue size, countdowns and the arrival wait are in `Config.Matchmaking`. Studio can't reserve
+servers, so there a finished queue turns the current server into the match; set
+`Config.ForceMode = "Match"` to skip the lobby while testing.
+
 ## What's in the game
 
 | Area | Where |
 | --- | --- |
+| Lobby queue (PLAY pad, 20 per match) and teleports | `Services/Matchmaking.luau`, `Bootstrap.luau` |
 | Round loop: intermission + map vote, Chef draft, reveal, cook (ramps at 30 s), stacking dishes, sudden death from course 6, winner | `ServerScriptService/RoundManager.luau` |
 | Chef draft: weighted Chef picks, private hands from each Chef's Pantry, server-checked picks, ghosts and bots fill seats, Reroll Hand | `ServerScriptService/ChefDraft.luau` |
 | Dish resolver: secret recipes → base stats → Spices (doubles, opposites, no dead modifiers) → hard caps → danger budget → name + hint | `ServerScriptService/DishResolver.luau` |
@@ -35,7 +51,7 @@ All tunable numbers (timings, Cash payouts, caps, odds, codes, product IDs, soun
 - Badges: Welcome, Line Cook (10 dishes), Sous Chef (50), Head Chef (250), Last One Standing. "Secret Sauce" is in-game only until a Roblox badge id is added to `Config.Badges.SecretRecipe`.
 - 14 synthesized sound effects uploaded as group audio (`assets/sounds/`)
 - Icon, 4 thumbnails and description on the game page (`assets/thumbnails/`)
-- Server size 16
+- Server size 40 (lobby capacity; each match takes at most 20)
 
 ## Building and publishing
 
@@ -64,6 +80,9 @@ execution API:
   Chefs, falling off Pizza Planet, winner, cleanup);
 - every client screen, menu, Shop tab and effect ran against realistic server payloads with no
   runtime errors (client modules run under a shim, since those sessions have no client).
+
+- the real server start-up runs in both modes, and the queue was checked with 22 stand-ins on the
+  pad (20 launched together, the other 2 as the next group, nobody re-queued mid-teleport).
 
 Those sessions don't step physics, so **creature movement, knockback, ice sliding and pulls were not
 observable there** — playtest them in Studio or a live server first.

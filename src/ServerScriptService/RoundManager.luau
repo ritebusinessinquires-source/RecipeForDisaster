@@ -806,12 +806,33 @@ function RoundManager.intermission(): string
 	return chosen
 end
 
+-- A fresh match server waits for the group the lobby sent before the first round.
+RoundManager.expected = 0
+RoundManager.arrivalDeadline = 0
+function RoundManager.expectPlayers(n: number)
+	if n > RoundManager.expected then
+		if RoundManager.expected == 0 then
+			RoundManager.arrivalDeadline = os.clock() + Config.Matchmaking.ArrivalWait
+		end
+		RoundManager.expected = math.min(n, Config.Matchmaking.MaxPlayers)
+	end
+end
+
 function RoundManager.loop()
 	while true do
 		local ok, err = pcall(function()
 			while #realPlayersInServer() == 0 do
 				setState("Phase", "Waiting")
 				task.wait(1)
+			end
+			if RoundManager.expected > 0 then
+				setState("Phase", "Arriving")
+				setState("PhaseEndsAt", workspace:GetServerTimeNow() + math.max(0, RoundManager.arrivalDeadline - os.clock()))
+				while #realPlayersInServer() < RoundManager.expected and os.clock() < RoundManager.arrivalDeadline do
+					setState("ArrivedCount", #realPlayersInServer())
+					task.wait(0.5)
+				end
+				RoundManager.expected = 0
 			end
 			local mapId = RoundManager.intermission()
 			local participants = {}

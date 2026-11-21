@@ -122,6 +122,9 @@ function PlayerData.load(player: any): any
 				data = result
 				break
 			end
+			if not ok and (string.find(tostring(result), "Studio", 1, true) or string.find(tostring(result), "not allowed", 1, true)) then
+				break -- Studio without API access: don't keep the player waiting
+			end
 			if not player.Parent then
 				return nil
 			end

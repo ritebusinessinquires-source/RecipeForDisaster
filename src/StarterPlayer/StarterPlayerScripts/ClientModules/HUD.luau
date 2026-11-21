@@ -33,12 +33,14 @@ local unlockLabel: TextLabel
 local sdChip: Frame
 local practiceChip: Frame
 local bigBanner: TextLabel
+local lobbyBtn: Frame
 
 local shownCash = 0
 local targetCash = 0
 
 local PHASE_TEXT = {
 	Waiting = "Waiting for players",
+	Arriving = "Waiting for your chefs to arrive",
 	Intermission = "Intermission - vote for a map!",
 	Draft = "Chef draft",
 	Reveal = "The reveal",
@@ -103,11 +105,15 @@ local function buildMenuBar()
 		{ "Shop", "🛒 Pantry", UI.C.Basil },
 		{ "Daily", "📅 Daily", UI.C.Mustard },
 		{ "Ranks", "🏆 Ranks", UI.C.Grape },
+		{ "Lobby", "🏠 Lobby", UI.C.Chocolate },
 	}
 	for i, it in ipairs(items) do
-		UI.button(menuBar, { Name = it[1], Text = it[2], Color = it[3], Size = UDim2.fromScale(0.23, 1), LayoutOrder = i, MaxText = 26 }, function()
+		local h = UI.button(menuBar, { Name = it[1], Text = it[2], Color = it[3], Size = UDim2.fromScale(0.19, 1), LayoutOrder = i, MaxText = 26 }, function()
 			HUD.onMenu(it[1])
 		end)
+		if it[1] == "Lobby" then
+			lobbyBtn = h -- only in match servers
+		end
 	end
 	spectateBtn = UI.button(gui, { Name = "Spectate", Text = "👻 Spectate", Color = UI.C.Grape, Size = UDim2.fromOffset(170, 60), Position = UDim2.new(1, -8, 1, -84), AnchorPoint = Vector2.new(1, 1), Visible = false }, function()
 		HUD.onSpectate()
@@ -214,12 +220,33 @@ local function refreshVisibility()
 	sdChip.Visible = roundActive and State.get("SuddenDeath") == true
 	practiceChip.Visible = roundActive and State.get("Practice") == true and not sdChip.Visible
 	dishesFrame.Visible = roundActive
+	local isLobby = State.get("Mode") ~= "Match"
+	lobbyBtn.Visible = not isLobby
 	local course = State.get("Course") or 0
-	courseLabel.Text = course > 0 and ("COURSE " .. course) or "LOBBY"
+	courseLabel.Text = course > 0 and ("COURSE " .. course) or (isLobby and "LOBBY" or "KITCHEN")
 	phaseLabel.Text = PHASE_TEXT[phase] or ""
-	if not alive and roundActive then
+	if isLobby then
+		phaseLabel.Text = HUD.queueText()
+	elseif not alive and roundActive then
 		phaseLabel.Text = (player:GetAttribute("Ghost") and "👻 Ghost - " or "") .. (PHASE_TEXT[phase] or "")
 	end
+end
+
+-- lobby servers: queue status on the ticket
+function HUD.queueText(): string
+	local count = State.get("QueueCount") or 0
+	local max = State.get("QueueMax") or 20
+	local status = State.get("QueueStatus")
+	if status == "Teleporting" and player:GetAttribute("InQueue") then
+		return "Heading to the kitchen!"
+	end
+	if player:GetAttribute("InQueue") then
+		return string.format("You're in! %d / %d chefs", count, max)
+	end
+	if count > 0 then
+		return string.format("Stand on the PLAY pad! %d / %d", count, max)
+	end
+	return "Stand on the green PLAY pad!"
 end
 
 function HUD.init(screen: ScreenGui)
@@ -234,13 +261,20 @@ function HUD.init(screen: ScreenGui)
 	if State.data then
 		refreshData(State.data)
 	end
-	for _, attr in ipairs({ "Phase", "RoundActive", "SuddenDeath", "Practice", "Course" }) do
+	for _, attr in ipairs({ "Phase", "RoundActive", "SuddenDeath", "Practice", "Course", "Mode", "QueueCount", "QueueStatus" }) do
 		State.onGame(attr, function()
 			refreshVisibility()
 		end)
 	end
 	player:GetAttributeChangedSignal("Alive"):Connect(refreshVisibility)
 	player:GetAttributeChangedSignal("Ghost"):Connect(refreshVisibility)
+	player:GetAttributeChangedSignal("InQueue"):Connect(function()
+		refreshVisibility()
+		if player:GetAttribute("InQueue") then
+			UI.sound("Pop", 0.7)
+			HUD.bigText("YOU'RE IN THE QUEUE!", UI.C.Basil, 1.2)
+		end
+	end)
 	State.onGame("ActiveDishes", function()
 		HUD.refreshDishes()
 	end)
@@ -263,12 +297,19 @@ function HUD.init(screen: ScreenGui)
 	local lastSecond = -1
 	RunService.RenderStepped:Connect(function(dt)
 		local left = State.timeLeft()
-		timerLabel.Text = Util.formatTime(left)
+		if State.get("Mode") ~= "Match" then
+			-- lobby: the ticket timer is the queue countdown
+			local endsAt = State.get("QueueEndsAt")
+			left = type(endsAt) == "number" and math.max(0, endsAt - workspace:GetServerTimeNow()) or 0
+			timerLabel.Text = type(endsAt) == "number" and Util.formatTime(left) or "--:--"
+		else
+			timerLabel.Text = Util.formatTime(left)
+		end
 		local sec = math.ceil(left)
 		if sec ~= lastSecond then
 			lastSecond = sec
 			local phase = State.get("Phase")
-			if sec <= 3 and sec > 0 and (phase == "Draft" or phase == "Intermission") then
+			if sec <= 3 and sec > 0 and (phase == "Draft" or phase == "Intermission" or (State.get("Mode") ~= "Match" and player:GetAttribute("InQueue"))) then
 				UI.sound("Tick", 0.5)
 			end
 		end

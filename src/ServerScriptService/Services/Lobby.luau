@@ -196,6 +196,100 @@ function Lobby.build(): any
 	return Lobby
 end
 
+-- The PLAY pad (lobby servers only): stand on it to join the queue.
+function Lobby.buildQueuePad(): BasePart
+	local model = Lobby.model :: Model
+	local b = Builder.new(model)
+	local o = Lobby.Origin
+	local center = o + Vector3.new(0, 0, -27)
+	local ring = b:cylinder(30, 0.5, center, "#3B2418", Enum.Material.SmoothPlastic, model, "QueueRing")
+	ring.CanCollide = false
+	local pad = b:cylinder(26, 0.7, center, "#4CAF50", Enum.Material.Neon, model, "QueuePad")
+	pad.CanCollide = false
+	-- arch with the PLAY sign
+	b:block(Vector3.new(2, 18, 2), center + Vector3.new(-14, 9, 0), "#FFC93C", Enum.Material.SmoothPlastic, model, "ArchPost")
+	b:block(Vector3.new(2, 18, 2), center + Vector3.new(14, 9, 0), "#FFC93C", Enum.Material.SmoothPlastic, model, "ArchPost")
+	local sign = b:block(Vector3.new(30, 6, 1), center + Vector3.new(0, 19, 0), "#E84A3A", Enum.Material.SmoothPlastic, model, "PlaySign")
+	-- face the sign toward the spawn side (+Z) so arriving players read it
+	sign.CFrame = CFrame.lookAt(sign.Position, sign.Position + Vector3.new(0, 0, 1))
+	for _, face in ipairs({ Enum.NormalId.Front, Enum.NormalId.Back }) do
+		local sg = Instance.new("SurfaceGui")
+		sg.Face = face
+		sg.SizingMode = Enum.SurfaceGuiSizingMode.PixelsPerStud
+		sg.PixelsPerStud = 24
+		sg.LightInfluence = 0
+		sg.Parent = sign
+		local t = Instance.new("TextLabel")
+		t.Size = UDim2.fromScale(1, 1)
+		t.BackgroundTransparency = 1
+		t.Font = Enum.Font.FredokaOne
+		t.TextScaled = true
+		t.Text = "▶ PLAY - STAND HERE"
+		t.TextColor3 = Color3.fromHex("FFF4DC")
+		t.Parent = sg
+		local st = Instance.new("UIStroke")
+		st.Thickness = 6
+		st.Color = Color3.fromHex("3B2418")
+		st.Parent = t
+	end
+	-- live queue status floating over the pad
+	local holder = b:block(Vector3.new(1, 1, 1), center + Vector3.new(0, 12, 0), "#FFFFFF", Enum.Material.SmoothPlastic, model, "QueueStatusAnchor")
+	holder.Transparency = 1
+	holder.CanCollide = false
+	holder.CanQuery = false
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "QueueStatus"
+	bb.Size = UDim2.fromOffset(420, 110)
+	bb.AlwaysOnTop = true
+	bb.MaxDistance = 160
+	bb.LightInfluence = 0
+	bb.Parent = holder
+	local l = Instance.new("TextLabel")
+	l.Name = "Text"
+	l.Size = UDim2.fromScale(1, 1)
+	l.BackgroundTransparency = 1
+	l.Font = Enum.Font.FredokaOne
+	l.TextScaled = true
+	l.TextColor3 = Color3.fromHex("FFC93C")
+	l.Text = "0 / 20 chefs"
+	l.Parent = bb
+	local st = Instance.new("UIStroke")
+	st.Thickness = 4
+	st.Color = Color3.fromHex("3B2418")
+	st.Parent = l
+	Lobby.queueLabel = l
+	local sparkle = Instance.new("ParticleEmitter")
+	sparkle.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	sparkle.Color = ColorSequence.new(Color3.fromHex("FFC93C"))
+	sparkle.Size = NumberSequence.new(0.6, 0)
+	sparkle.Rate = 12
+	sparkle.Lifetime = NumberRange.new(1, 2)
+	sparkle.Speed = NumberRange.new(2, 5)
+	sparkle.SpreadAngle = Vector2.new(20, 20)
+	sparkle.EmissionDirection = Enum.NormalId.Right
+	sparkle.Parent = pad
+	Lobby.queuePad = pad
+	return pad
+end
+
+function Lobby.setQueueStatus(count: number, max: number, secondsLeft: number?, status: string)
+	local l = Lobby.queueLabel
+	if not l then
+		return
+	end
+	if status == "Teleporting" then
+		l.Text = "Heading to the kitchen! 🍳"
+	elseif secondsLeft then
+		l.Text = string.format("%d / %d chefs\nstarting in %d", count, max, math.ceil(secondsLeft))
+	else
+		l.Text = string.format("%d / %d chefs\nstep on to play!", count, max)
+	end
+	local pad = Lobby.queuePad
+	if pad then
+		pad.Color = secondsLeft and Color3.fromHex("FFC93C") or Color3.fromHex("4CAF50")
+	end
+end
+
 function Lobby.randomSpawnCFrame(): CFrame
 	local o = Lobby.Origin
 	local x = math.random(-40, 40)

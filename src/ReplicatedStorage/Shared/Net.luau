@@ -29,6 +29,8 @@ Net.Events = {
 	"Rumble", -- server -> all: camera shake
 	"ClientEffect", -- server -> player: { kind, ... } (freeze overlay, upside down, etc.)
 	"PromptPurchase", -- client -> server: { kind, key, target }
+	"ReturnToLobby", -- client -> server: leave a match server for the lobby
+	"TeleportNotice", -- server -> player: { text, kind }
 }
 
 Net.Functions = {
@@ -68,12 +70,29 @@ local function getFolder(): Folder
 	return folder :: Folder
 end
 
+-- Server: create every remote and the shared state folder up front.
+function Net.init()
+	getFolder()
+	Net.stateFolder()
+end
+
+local function get(name: string): Instance
+	local f = getFolder()
+	if RunService:IsServer() then
+		-- the server creates every remote up front, so a missing one is a typo: fail loudly
+		local r = f:FindFirstChild(name)
+		assert(r, "[Net] unknown remote '" .. name .. "'")
+		return r
+	end
+	return f:WaitForChild(name)
+end
+
 function Net.event(name: string): RemoteEvent
-	return getFolder():WaitForChild(name) :: RemoteEvent
+	return get(name) :: RemoteEvent
 end
 
 function Net.func(name: string): RemoteFunction
-	return getFolder():WaitForChild(name) :: RemoteFunction
+	return get(name) :: RemoteFunction
 end
 
 local function isRealPlayer(p: any): boolean

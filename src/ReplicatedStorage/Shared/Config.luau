@@ -28,6 +28,18 @@ Config.MaxCourses = 14 -- hard safety stop
 Config.MinPlayersForRound = 2 -- with 1 player the round runs as solo practice
 Config.SoloMaxCourses = 8
 
+-- Matchmaking: public servers are the lobby; walking onto the PLAY pad joins the queue and
+-- the queue is sent together into a fresh reserved match server.
+Config.Matchmaking = {
+	MaxPlayers = 20, -- per match
+	MinPlayers = 1, -- a lone player gets solo practice
+	Countdown = 20, -- seconds after the first player steps on the pad
+	FullCountdown = 3, -- when the queue is full
+	ArrivalWait = 25, -- a match server waits this long for its whole group to arrive
+}
+-- "Lobby" or "Match" to force a mode (handy in Studio). nil = decide automatically.
+Config.ForceMode = nil :: string?
+
 -- Dish rules
 Config.DangerCap = 10
 Config.Caps = {
