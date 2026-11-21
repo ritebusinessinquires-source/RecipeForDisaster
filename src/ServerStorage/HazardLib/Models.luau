@@ -1,0 +1,296 @@
+-- Procedural hazard models built from parts. Every model has an invisible ball "Root"
+-- (PrimaryPart) with the visual parts welded to it, so movers only drive the root.
+
+local Models = {}
+
+local function newPart(shape: Enum.PartType?, size: Vector3, color: Color3, material: Enum.Material?): Part
+	local p = Instance.new("Part")
+	p.Shape = shape or Enum.PartType.Block
+	p.Size = size
+	p.Color = color
+	p.Material = material or Enum.Material.SmoothPlastic
+	p.TopSurface = Enum.SurfaceType.Smooth
+	p.BottomSurface = Enum.SurfaceType.Smooth
+	p.Anchored = false
+	p.CanCollide = false
+	p.CanQuery = false
+	p.CanTouch = false
+	p.Massless = true
+	p.CastShadow = true
+	return p
+end
+Models.newPart = newPart
+
+local function rgb(r: number, g: number, b: number): Color3
+	return Color3.fromRGB(r, g, b)
+end
+
+-- Creates the model + root. radius = collision radius in studs.
+function Models.base(name: string, radius: number, collide: boolean?): (Model, Part)
+	local model = Instance.new("Model")
+	model.Name = name
+	local root = newPart(Enum.PartType.Ball, Vector3.one * (radius * 2), Color3.new(1, 1, 1))
+	root.Name = "Root"
+	root.Transparency = 1
+	root.Massless = false
+	root.CanCollide = collide == true
+	root.CanQuery = false
+	root.CastShadow = false
+	root.CustomPhysicalProperties = PhysicalProperties.new(1, 0, 0, 100, 100)
+	root.CFrame = CFrame.new()
+	root.Parent = model
+	model.PrimaryPart = root
+	return model, root
+end
+
+-- Adds a visual part at an offset from the root (root sits at origin while building).
+function Models.add(model: Model, shape: Enum.PartType?, size: Vector3, color: Color3, offset: CFrame, material: Enum.Material?, name: string?): Part
+	local root = model.PrimaryPart :: BasePart
+	local p = newPart(shape, size, color, material)
+	p.Name = name or "Part"
+	p.CFrame = root.CFrame * offset
+	local w = Instance.new("WeldConstraint")
+	w.Part0 = root
+	w.Part1 = p
+	w.Parent = p
+	p.Parent = model
+	return p
+end
+
+local Ball, Block, Cyl, Wedge = Enum.PartType.Ball, Enum.PartType.Block, Enum.PartType.Cylinder, Enum.PartType.Wedge
+local Neon = Enum.Material.Neon
+
+local function eyes(model: Model, s: number, y: number, z: number, spread: number, size: number)
+	Models.add(model, Ball, Vector3.one * size * s, rgb(255, 255, 255), CFrame.new(-spread * s, y * s, z * s))
+	Models.add(model, Ball, Vector3.one * size * s, rgb(255, 255, 255), CFrame.new(spread * s, y * s, z * s))
+	Models.add(model, Ball, Vector3.one * size * 0.55 * s, rgb(20, 16, 12), CFrame.new(-spread * s, y * s, (z - size * 0.3) * s))
+	Models.add(model, Ball, Vector3.one * size * 0.55 * s, rgb(20, 16, 12), CFrame.new(spread * s, y * s, (z - size * 0.3) * s))
+end
+
+-- Models face -Z (CFrame.lookAt convention).
+
+function Models.Bees(s: number): Model
+	local m = Models.base("Bee", 1.3 * s)
+	Models.add(m, Ball, Vector3.new(2.2, 2.2, 2.2) * s, rgb(255, 201, 60), CFrame.new(0, 0, 0), nil, "Body")
+	-- stripes: rings just wider than the body's cross-section at that point, so they wrap it
+	Models.add(m, Cyl, Vector3.new(0.32, 2.24, 2.24) * s, rgb(40, 30, 20), CFrame.new(0, 0, 0.12 * s) * CFrame.Angles(0, math.rad(90), 0))
+	Models.add(m, Cyl, Vector3.new(0.3, 1.84, 1.84) * s, rgb(40, 30, 20), CFrame.new(0, 0, 0.62 * s) * CFrame.Angles(0, math.rad(90), 0))
+	Models.add(m, Ball, Vector3.new(1.4, 1.4, 1.4) * s, rgb(40, 30, 20), CFrame.new(0, 0.2 * s, -1.2 * s), nil, "Head")
+	eyes(m, s, 0.45, -1.75, 0.35, 0.45)
+	local wingColor = rgb(220, 240, 255)
+	local w1 = Models.add(m, Block, Vector3.new(1.8, 0.1, 1.0) * s, wingColor, CFrame.new(-1.0 * s, 1.0 * s, 0.2 * s) * CFrame.Angles(0, 0, math.rad(25)))
+	local w2 = Models.add(m, Block, Vector3.new(1.8, 0.1, 1.0) * s, wingColor, CFrame.new(1.0 * s, 1.0 * s, 0.2 * s) * CFrame.Angles(0, 0, math.rad(-25)))
+	w1.Transparency, w2.Transparency = 0.35, 0.35
+	Models.add(m, Wedge, Vector3.new(0.3, 0.5, 0.8) * s, rgb(30, 20, 15), CFrame.new(0, -0.2 * s, 1.5 * s))
+	return m
+end
+
+function Models.Zombies(s: number): Model
+	local m = Models.base("Zombie", 1.5 * s, true)
+	local skin, shirt, pants = rgb(120, 180, 90), rgb(90, 120, 160), rgb(70, 60, 90)
+	Models.add(m, Block, Vector3.new(2, 2, 1) * s, shirt, CFrame.new(0, 0.95 * s, 0), nil, "Torso")
+	Models.add(m, Block, Vector3.new(1.3, 1.3, 1.3) * s, skin, CFrame.new(0, 2.6 * s, 0), nil, "Head")
+	eyes(m, s, 2.75, -0.66, 0.3, 0.35)
+	Models.add(m, Block, Vector3.new(0.5, 0.15, 0.1) * s, rgb(60, 20, 20), CFrame.new(0, 2.3 * s, -0.66 * s))
+	Models.add(m, Block, Vector3.new(0.8, 0.8, 2.2) * s, skin, CFrame.new(-1.4 * s, 1.55 * s, -1.0 * s))
+	Models.add(m, Block, Vector3.new(0.8, 0.8, 2.2) * s, skin, CFrame.new(1.4 * s, 1.55 * s, -1.0 * s))
+	Models.add(m, Block, Vector3.new(0.9, 1.4, 0.9) * s, pants, CFrame.new(-0.5 * s, -0.75 * s, 0))
+	Models.add(m, Block, Vector3.new(0.9, 1.4, 0.9) * s, pants, CFrame.new(0.5 * s, -0.75 * s, 0))
+	return m
+end
+
+function Models.Chickens(s: number): Model
+	local m = Models.base("Chicken", 1.1 * s, true)
+	Models.add(m, Ball, Vector3.new(2.2, 2.2, 2.2) * s, rgb(250, 250, 245), CFrame.new(0, 0.5 * s, 0.2 * s), nil, "Body")
+	Models.add(m, Ball, Vector3.new(1.3, 1.3, 1.3) * s, rgb(250, 250, 245), CFrame.new(0, 1.7 * s, -0.7 * s), nil, "Head")
+	Models.add(m, Block, Vector3.new(0.3, 0.6, 0.8) * s, rgb(232, 74, 58), CFrame.new(0, 2.45 * s, -0.7 * s))
+	Models.add(m, Wedge, Vector3.new(0.4, 0.35, 0.6) * s, rgb(255, 180, 40), CFrame.new(0, 1.6 * s, -1.45 * s) * CFrame.Angles(math.rad(90), 0, 0))
+	eyes(m, s, 1.9, -1.2, 0.3, 0.3)
+	Models.add(m, Block, Vector3.new(0.6, 1.2, 1.4) * s, rgb(235, 235, 230), CFrame.new(-1.1 * s, 0.6 * s, 0.2 * s))
+	Models.add(m, Block, Vector3.new(0.6, 1.2, 1.4) * s, rgb(235, 235, 230), CFrame.new(1.1 * s, 0.6 * s, 0.2 * s))
+	Models.add(m, Block, Vector3.new(0.2, 0.9, 0.2) * s, rgb(255, 180, 40), CFrame.new(-0.4 * s, -0.7 * s, 0.1 * s))
+	Models.add(m, Block, Vector3.new(0.2, 0.9, 0.2) * s, rgb(255, 180, 40), CFrame.new(0.4 * s, -0.7 * s, 0.1 * s))
+	return m
+end
+
+function Models.Sharks(s: number): Model
+	local m = Models.base("Shark", 1.6 * s)
+	local grey = rgb(120, 135, 150)
+	Models.add(m, Ball, Vector3.new(2.6, 2.2, 6.5) * s, grey, CFrame.new(0, -0.4 * s, 0), nil, "Body")
+	Models.add(m, Wedge, Vector3.new(0.4, 2.2, 2.0) * s, grey, CFrame.new(0, 1.6 * s, 0.4 * s), nil, "Fin")
+	Models.add(m, Wedge, Vector3.new(0.4, 1.8, 1.4) * s, grey, CFrame.new(0, 0.3 * s, 3.6 * s) * CFrame.Angles(0, math.rad(180), 0))
+	Models.add(m, Block, Vector3.new(1.6, 0.2, 0.6) * s, rgb(240, 240, 240), CFrame.new(0, -0.9 * s, -2.6 * s))
+	eyes(m, s, 0.0, -2.4, 0.9, 0.35)
+	return m
+end
+
+function Models.Robots(s: number): Model
+	local m = Models.base("Robot", 1.6 * s, true)
+	local metal = rgb(170, 180, 190)
+	Models.add(m, Block, Vector3.new(2.4, 2.2, 1.6) * s, metal, CFrame.new(0, 0.6 * s, 0), Enum.Material.DiamondPlate, "Torso")
+	Models.add(m, Block, Vector3.new(1.6, 1.3, 1.4) * s, metal, CFrame.new(0, 2.4 * s, 0), Enum.Material.Metal, "Head")
+	Models.add(m, Block, Vector3.new(1.3, 0.35, 0.1) * s, rgb(255, 40, 40), CFrame.new(0, 2.5 * s, -0.72 * s), Neon, "Visor")
+	Models.add(m, Cyl, Vector3.new(1.2, 0.15, 0.15) * s, rgb(60, 60, 60), CFrame.new(0, 3.5 * s, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	Models.add(m, Ball, Vector3.new(0.4, 0.4, 0.4) * s, rgb(255, 201, 60), CFrame.new(0, 4.15 * s, 0), Neon)
+	Models.add(m, Block, Vector3.new(0.6, 0.6, 1.8) * s, rgb(90, 95, 105), CFrame.new(-1.5 * s, 0.9 * s, -0.6 * s), nil, "Gun")
+	Models.add(m, Block, Vector3.new(0.6, 0.6, 1.8) * s, rgb(90, 95, 105), CFrame.new(1.5 * s, 0.9 * s, -0.6 * s))
+	Models.add(m, Block, Vector3.new(0.8, 1.0, 2.0) * s, rgb(60, 60, 70), CFrame.new(-0.7 * s, -1.1 * s, 0))
+	Models.add(m, Block, Vector3.new(0.8, 1.0, 2.0) * s, rgb(60, 60, 70), CFrame.new(0.7 * s, -1.1 * s, 0))
+	return m
+end
+
+function Models.Ghosts(s: number): Model
+	local m = Models.base("Ghost", 1.6 * s)
+	local c = rgb(240, 240, 255)
+	local body = Models.add(m, Ball, Vector3.new(3, 3, 3) * s, c, CFrame.new(0, 0.6 * s, 0), nil, "Body")
+	local tail = Models.add(m, Cyl, Vector3.new(2.2, 2.9, 2.9) * s, c, CFrame.new(0, -0.6 * s, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	body.Transparency, tail.Transparency = 0.25, 0.25
+	Models.add(m, Ball, Vector3.new(0.6, 0.8, 0.3) * s, rgb(20, 16, 30), CFrame.new(-0.5 * s, 0.9 * s, -1.35 * s))
+	Models.add(m, Ball, Vector3.new(0.6, 0.8, 0.3) * s, rgb(20, 16, 30), CFrame.new(0.5 * s, 0.9 * s, -1.35 * s))
+	Models.add(m, Ball, Vector3.new(0.7, 0.5, 0.3) * s, rgb(20, 16, 30), CFrame.new(0, 0.1 * s, -1.4 * s))
+	local light = Instance.new("PointLight")
+	light.Color = rgb(180, 160, 255)
+	light.Range = 10 * s
+	light.Brightness = 1
+	light.Parent = body
+	return m
+end
+
+function Models.Snowmen(s: number): Model
+	local m = Models.base("Snowman", 1.6 * s, true)
+	local snow = rgb(245, 250, 255)
+	Models.add(m, Ball, Vector3.new(3.2, 3.2, 3.2) * s, snow, CFrame.new(0, 0, 0), Enum.Material.Snow)
+	Models.add(m, Ball, Vector3.new(2.4, 2.4, 2.4) * s, snow, CFrame.new(0, 2.4 * s, 0), Enum.Material.Snow)
+	Models.add(m, Ball, Vector3.new(1.7, 1.7, 1.7) * s, snow, CFrame.new(0, 4.2 * s, 0), Enum.Material.Snow, "Head")
+	Models.add(m, Wedge, Vector3.new(0.3, 0.3, 1.0) * s, rgb(255, 140, 30), CFrame.new(0, 4.2 * s, -1.2 * s) * CFrame.Angles(0, math.rad(180), 0))
+	Models.add(m, Cyl, Vector3.new(1.0, 1.6, 1.6) * s, rgb(30, 30, 30), CFrame.new(0, 5.4 * s, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	Models.add(m, Block, Vector3.new(2.6, 0.4, 0.4) * s, rgb(232, 74, 58), CFrame.new(0, 3.4 * s, 0))
+	eyes(m, s, 4.4, -0.75, 0.3, 0.25)
+	return m
+end
+
+function Models.Boulders(s: number): Model
+	local m = Models.base("Boulder", 3 * s, true)
+	local root = m.PrimaryPart :: Part
+	root.Transparency = 0
+	root.Color = rgb(125, 110, 95)
+	root.Material = Enum.Material.Slate
+	root.CustomPhysicalProperties = PhysicalProperties.new(3, 0.6, 0.2, 1, 1)
+	Models.add(m, Ball, Vector3.new(2.5, 2.5, 2.5) * s, rgb(105, 95, 85), CFrame.new(1.6 * s, 1.2 * s, 0.6 * s), Enum.Material.Slate)
+	Models.add(m, Ball, Vector3.new(2.2, 2.2, 2.2) * s, rgb(140, 125, 105), CFrame.new(-1.4 * s, -0.8 * s, -1.2 * s), Enum.Material.Slate)
+	return m
+end
+
+function Models.Pumpkins(s: number): Model
+	local m = Models.base("Pumpkin", 3 * s, true)
+	local root = m.PrimaryPart :: Part
+	root.Transparency = 0
+	root.Color = rgb(240, 130, 30)
+	root.CustomPhysicalProperties = PhysicalProperties.new(2, 0.6, 0.2, 1, 1)
+	Models.add(m, Cyl, Vector3.new(1.4, 0.8, 0.8) * s, rgb(70, 120, 40), CFrame.new(0, 3.2 * s, 0) * CFrame.Angles(0, 0, math.rad(90)))
+	Models.add(m, Block, Vector3.new(0.9, 0.9, 0.3) * s, rgb(40, 20, 10), CFrame.new(-1 * s, 1 * s, -2.7 * s), Neon)
+	Models.add(m, Block, Vector3.new(0.9, 0.9, 0.3) * s, rgb(40, 20, 10), CFrame.new(1 * s, 1 * s, -2.7 * s), Neon)
+	return m
+end
+
+function Models.Cars(s: number, color: Color3?): Model
+	local m = Models.base("Car", 2.2 * s, false)
+	local paint = color or rgb(232, 74, 58)
+	local root = m.PrimaryPart :: Part
+	-- cars use a box root so they slide straight
+	root.Shape = Enum.PartType.Block
+	root.Size = Vector3.new(5, 2.2, 9) * s
+	root.CanCollide = true
+	root.CustomPhysicalProperties = PhysicalProperties.new(1.5, 0, 0, 100, 100)
+	Models.add(m, Block, Vector3.new(5, 1.6, 9) * s, paint, CFrame.new(0, 0.2 * s, 0), nil, "Body")
+	Models.add(m, Block, Vector3.new(4.4, 1.5, 4.2) * s, paint, CFrame.new(0, 1.7 * s, 0.6 * s), nil, "Cabin")
+	local glass = Models.add(m, Block, Vector3.new(4.0, 1.1, 0.2) * s, rgb(150, 210, 255), CFrame.new(0, 1.8 * s, -1.55 * s), Enum.Material.Glass)
+	glass.Transparency = 0.3
+	for _, x in ipairs({ -2.5, 2.5 }) do
+		for _, z in ipairs({ -2.8, 2.8 }) do
+			Models.add(m, Cyl, Vector3.new(0.8, 2, 2) * s, rgb(30, 30, 30), CFrame.new(x * s, -0.1 * s, z * s) * CFrame.Angles(0, 0, 0))
+		end
+	end
+	Models.add(m, Block, Vector3.new(1, 0.6, 0.2) * s, rgb(255, 250, 200), CFrame.new(-1.6 * s, 0.4 * s, -4.55 * s), Neon)
+	Models.add(m, Block, Vector3.new(1, 0.6, 0.2) * s, rgb(255, 250, 200), CFrame.new(1.6 * s, 0.4 * s, -4.55 * s), Neon)
+	return m
+end
+
+function Models.Tornado(s: number): Model
+	local m = Models.base("Tornado", 4 * s)
+	local layers = 7
+	for i = 1, layers do
+		local t = i / layers
+		local r = (3 + t * 12) * s
+		local p = Models.add(m, Cyl, Vector3.new(4 * s, r * 2, r * 2), rgb(200, 200, 210), CFrame.new(0, (i - 1) * 4.5 * s, 0) * CFrame.Angles(0, 0, math.rad(90)), Enum.Material.SmoothPlastic, "Layer")
+		p.Transparency = 0.45 + t * 0.2
+		p.CastShadow = false
+	end
+	local dust = Instance.new("ParticleEmitter")
+	dust.Texture = "rbxasset://textures/particles/smoke_main.dds"
+	dust.Color = ColorSequence.new(rgb(190, 180, 160))
+	dust.Size = NumberSequence.new(4 * s, 9 * s)
+	dust.Transparency = NumberSequence.new(0.5, 1)
+	dust.Lifetime = NumberRange.new(1.5, 2.5)
+	dust.Rate = 25
+	dust.Speed = NumberRange.new(4, 10)
+	dust.SpreadAngle = Vector2.new(180, 30)
+	dust.RotSpeed = NumberRange.new(-180, 180)
+	dust.Parent = m.PrimaryPart
+	return m
+end
+
+-- Popcorn kernel / generic blob
+function Models.Blob(s: number, color: Color3, material: Enum.Material?): Model
+	local m = Models.base("Blob", 1 * s, true)
+	local root = m.PrimaryPart :: Part
+	root.Transparency = 0
+	root.Color = color
+	root.Material = material or Enum.Material.SmoothPlastic
+	return m
+end
+
+-- Rubber duck (Bath Time)
+function Models.Duck(s: number): Model
+	local m = Models.base("Duck", 1.4 * s)
+	Models.add(m, Ball, Vector3.new(2.6, 2.2, 3) * s, rgb(255, 214, 40), CFrame.new(0, 0, 0))
+	Models.add(m, Ball, Vector3.new(1.6, 1.6, 1.6) * s, rgb(255, 214, 40), CFrame.new(0, 1.4 * s, -0.8 * s), nil, "Head")
+	Models.add(m, Wedge, Vector3.new(0.9, 0.3, 0.8) * s, rgb(255, 120, 30), CFrame.new(0, 1.3 * s, -1.8 * s))
+	eyes(m, s, 1.7, -1.45, 0.35, 0.3)
+	return m
+end
+
+function Models.Wisp(s: number): Model
+	local m = Models.base("Wisp", 1 * s)
+	local core = Models.add(m, Ball, Vector3.new(1.6, 1.6, 1.6) * s, rgb(140, 220, 255), CFrame.new(), Neon, "Core")
+	core.Transparency = 0.2
+	local fire = Instance.new("Fire")
+	fire.Color = rgb(120, 200, 255)
+	fire.SecondaryColor = rgb(200, 120, 255)
+	fire.Size = 4 * s
+	fire.Heat = 6
+	fire.Parent = core
+	local l = Instance.new("PointLight")
+	l.Color = rgb(140, 200, 255)
+	l.Range = 14
+	l.Brightness = 2
+	l.Parent = core
+	return m
+end
+
+function Models.Mech(s: number): Model
+	local m = Models.base("Mech", 4 * s, true)
+	local metal = rgb(150, 160, 175)
+	Models.add(m, Block, Vector3.new(7, 6, 5) * s, metal, CFrame.new(0, 5 * s, 0), Enum.Material.DiamondPlate)
+	Models.add(m, Block, Vector3.new(4, 3, 3.6) * s, metal, CFrame.new(0, 9.5 * s, 0), Enum.Material.Metal)
+	Models.add(m, Block, Vector3.new(3.4, 0.8, 0.2) * s, rgb(255, 40, 40), CFrame.new(0, 9.7 * s, -1.85 * s), Neon)
+	Models.add(m, Block, Vector3.new(2, 2, 8) * s, rgb(90, 95, 105), CFrame.new(-4.6 * s, 5.5 * s, -1.5 * s))
+	Models.add(m, Block, Vector3.new(2, 2, 8) * s, rgb(90, 95, 105), CFrame.new(4.6 * s, 5.5 * s, -1.5 * s))
+	Models.add(m, Block, Vector3.new(2.4, 5, 2.4) * s, rgb(70, 70, 80), CFrame.new(-1.8 * s, 0.2 * s, 0))
+	Models.add(m, Block, Vector3.new(2.4, 5, 2.4) * s, rgb(70, 70, 80), CFrame.new(1.8 * s, 0.2 * s, 0))
+	local magnet = Models.add(m, Cyl, Vector3.new(1.2, 4, 4) * s, rgb(232, 74, 58), CFrame.new(0, 13 * s, 0) * CFrame.Angles(0, 0, math.rad(90)), Neon)
+	magnet.Name = "Magnet"
+	return m
+end
+
+return Models

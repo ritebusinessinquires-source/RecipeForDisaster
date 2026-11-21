@@ -1,0 +1,69 @@
+# Recipe for Disaster
+
+A Roblox party-survival game: each course, three random players secretly add one ingredient
+each to a pot, and everyone has to survive the dish they cooked ("Giant Slippery Bees in the
+Dark"). 12 Mains × 78 Spice pairs × 7 Twist options = **6,552 dishes**, plus 14 secret recipes.
+
+- Universe `10778121901`, place `77411074610403` (Roblox game page: https://www.roblox.com/games/77411074610403)
+- Built from the *Recipe for Disaster — Game Design Doc* (Nov 20, 2026)
+
+## What's in the game
+
+| Area | Where |
+| --- | --- |
+| Round loop: intermission + map vote, Chef draft, reveal, cook (ramps at 30 s), stacking dishes, sudden death from course 6, winner | `ServerScriptService/RoundManager.luau` |
+| Chef draft: weighted Chef picks, private hands from each Chef's Pantry, server-checked picks, ghosts and bots fill seats, Reroll Hand | `ServerScriptService/ChefDraft.luau` |
+| Dish resolver: secret recipes → base stats → Spices (doubles, opposites, no dead modifiers) → hard caps → danger budget → name + hint | `ServerScriptService/DishResolver.luau` |
+| 12 Mains + 2 seasonal (Pumpkins in October, Snowmen in December) | `ServerStorage/Mains/` |
+| 12 Spices, each with hooks for all four types | `ServerStorage/Spices/` |
+| 6 Twists (ghost-voted) | `ServerStorage/Twists/` |
+| 14 secret recipes (Steam Bath, Popcorn, Avalanche, Disco Inferno, Mega Mech, Zombie Conga, Demolition Derby, Bowling Night, Volcano, Bath Time, Sinkhole, Thunderstorm, Stampede, Will-o'-Wisps) | `ServerStorage/Recipes/` |
+| Hazard engine: physics movers, floor tiles, creature/projectile/terrain/weather runners | `ServerStorage/HazardLib/` |
+| Maps: The Countertop, Picnic Meadow, Pizza Planet (+ the TV-studio lobby) | `ServerStorage/Maps/`, `Services/Lobby.luau` |
+| Saving (session-locked DataStore), Cash economy, Pantry shop, spin wheel, codes, cosmetics, Cookbook, badges | `ServerScriptService/PlayerData.luau`, `Services/` |
+| Daily login calendar, daily quests, Dish of the Day, free daily Spin, invites, weekly leaderboards + titles + Golden Whisk | `Services/Daily.luau`, `Services/Leaderboards.luau` |
+| Game Passes, Developer Products, gifting | `Services/Monetization.luau` |
+| Client: HUD, map vote, Tonight's Chefs, Chef hand, reveal, Eliminated, ghost vote, wipeout banner, winner, Cookbook, Pantry shop, Daily, Ranks, effects | `StarterPlayer/StarterPlayerScripts/ClientModules/` |
+
+All tunable numbers (timings, Cash payouts, caps, odds, codes, product IDs, sound IDs) are in
+`src/ReplicatedStorage/Shared/Config.luau`.
+
+## Live Roblox setup (created through Open Cloud)
+
+- Game Passes: VIP Chef `2096800887`, 2× Cash `2092727074`, Bigger Hand `2092948975`, Recipe Hints `2092925010`, Chef Taunts `2096950882`
+- Developer Products: 1/5/15 Spins, Cash Jar S/M/L, Reroll Hand, and a "Gift" product per pass (IDs in `Config.luau`)
+- Badges: Welcome, Line Cook (10 dishes), Sous Chef (50), Head Chef (250), Last One Standing. "Secret Sauce" is in-game only until a Roblox badge id is added to `Config.Badges.SecretRecipe`.
+- 14 synthesized sound effects uploaded as group audio (`assets/sounds/`)
+- Icon, 4 thumbnails and description on the game page (`assets/thumbnails/`)
+- Server size 16
+
+## Building and publishing
+
+The repo uses the Rojo layout (`default.project.json`), so you can `rojo serve` it into Studio.
+Without Rojo, `tools/build_place.py` writes `build/RecipeForDisaster.rbxlx` from `src/`:
+
+```bash
+python3 tools/build_place.py
+```
+
+```bash
+ROBLOX_API_KEY=... tools/publish.sh            # Published
+ROBLOX_API_KEY=... tools/publish.sh Saved      # saved version only
+```
+
+## How it was tested
+
+There is no Studio here, so the game was tested in a real Roblox server through Open Cloud's Luau
+execution API:
+
+- every ModuleScript loads; all 6,552 dishes resolve to unique keys; the design doc's example
+  dishes come out as written ("Giant Slippery Bees" = 3 huge slow bees, "Tiny Exploding Zombies" = 24);
+- all three maps and the lobby build;
+- every Main ran with a spread of Spices on every map with no script errors;
+- full rounds ran end to end with stand-in players (draft, reveal, cook, kill credit to the right
+  Chefs, falling off Pizza Planet, winner, cleanup);
+- every client screen, menu, Shop tab and effect ran against realistic server payloads with no
+  runtime errors (client modules run under a shim, since those sessions have no client).
+
+Those sessions don't step physics, so **creature movement, knockback, ice sliding and pulls were not
+observable there** — playtest them in Studio or a live server first.
